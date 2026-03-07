@@ -177,7 +177,8 @@ namespace AIBridge.Editor
                     return new
                     {
                         instantiate = new { type = "prefab", @params = new { action = "instantiate", prefabPath = "Assets/Prefabs/MyPrefab.prefab" } },
-                        get_info = new { type = "prefab", @params = new { action = "get_info", prefabPath = "Assets/Prefabs/MyPrefab.prefab" } }
+                        get_info = new { type = "prefab", @params = new { action = "get_info", prefabPath = "Assets/Prefabs/MyPrefab.prefab" } },
+                        get_hierarchy = new { type = "prefab", @params = new { action = "get_hierarchy", prefabPath = "Assets/Prefabs/MyPrefab.prefab", depth = 5 } }
                     };
 
                 case "batch":

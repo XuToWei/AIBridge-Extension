@@ -356,6 +356,10 @@ AIBridgeCLI.exe prefab unpack --gameObjectPath "Player(Clone)" --completely true
 # Get Info
 AIBridgeCLI.exe prefab get_info --prefabPath "Assets/Prefabs/Player.prefab"
 
+# Get Hierarchy
+AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/UI/MainPanel.prefab" --depth 4 --includeInactive false
+
 # Apply Overrides
 AIBridgeCLI.exe prefab apply --gameObjectPath "Player(Clone)"
 ```

@@ -131,6 +131,9 @@ AIBridgeCLI transform set_position --path "MyCube" --x 1 --y 2 --z 3
 # 获取场景层级
 AIBridgeCLI scene get_hierarchy
 
+# 获取 Prefab 层级结构
+AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+
 # 捕获截图
 AIBridgeCLI screenshot game
 
@@ -152,7 +155,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `inspector` | Component/Inspector 操作 |
 | `selection` | 选择操作 |
 | `scene` | 场景操作（加载、保存、层级） |
-| `prefab` | 预制体操作（实例化、保存、解包） |
+| `prefab` | 预制体操作（实例化、信息查看、保存、解包） |
 | `asset` | AssetDatabase 操作 |
 | `menu_item` | 调用 Unity 菜单项 |
 | `get_logs` | 获取 Unity 控制台日志 |

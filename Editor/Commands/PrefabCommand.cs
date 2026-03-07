@@ -5,7 +5,7 @@ using UnityEngine;
 namespace AIBridge.Editor
 {
     /// <summary>
-    /// Prefab operations: instantiate, save, unpack
+    /// Prefab operations: instantiate, save, unpack, inspect, apply
     /// Supports multiple sub-commands via "action" parameter
     /// </summary>
     public class PrefabCommand : ICommand
@@ -29,10 +29,12 @@ namespace AIBridge.Editor
                         return UnpackPrefab(request);
                     case "get_info":
                         return GetPrefabInfo(request);
+                    case "get_hierarchy":
+                        return GetPrefabHierarchy(request);
                     case "apply":
                         return ApplyPrefab(request);
                     default:
-                        return CommandResult.Failure(request.id, $"Unknown action: {action}. Supported: instantiate, save, unpack, get_info, apply");
+                        return CommandResult.Failure(request.id, $"Unknown action: {action}. Supported: instantiate, save, unpack, get_info, get_hierarchy, apply");
                 }
             }
             catch (Exception ex)
@@ -214,6 +216,97 @@ namespace AIBridge.Editor
             });
         }
 
+        private CommandResult GetPrefabHierarchy(CommandRequest request)
+        {
+            var prefabPath = request.GetParam<string>("prefabPath");
+            if (string.IsNullOrEmpty(prefabPath))
+            {
+                return CommandResult.Failure(request.id, "Missing 'prefabPath' parameter");
+            }
+
+            var depth = Math.Max(0, request.GetParam("depth", 5));
+            var includeInactive = request.GetParam("includeInactive", true);
+            var includeComponents = request.GetParam("includeComponents", true);
+
+            var prefabRoot = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefabRoot == null)
+            {
+                return CommandResult.Failure(request.id, $"Prefab not found at path: {prefabPath}");
+            }
+
+            var hierarchy = new System.Collections.Generic.List<PrefabHierarchyNode>();
+            var truncated = false;
+
+            if (includeInactive || prefabRoot.activeSelf)
+            {
+                hierarchy.Add(BuildHierarchyNode(prefabRoot, prefabRoot.name, depth, includeInactive, includeComponents, ref truncated));
+            }
+
+            return CommandResult.Success(request.id, new
+            {
+                prefabPath = prefabPath,
+                prefabName = prefabRoot.name,
+                depth = depth,
+                includeInactive = includeInactive,
+                includeComponents = includeComponents,
+                rootCount = hierarchy.Count,
+                truncated = truncated,
+                hierarchy = hierarchy
+            });
+        }
+
+        private PrefabHierarchyNode BuildHierarchyNode(GameObject go, string path, int remainingDepth, bool includeInactive, bool includeComponents, ref bool truncated)
+        {
+            var node = new PrefabHierarchyNode
+            {
+                name = go.name,
+                path = path,
+                active = go.activeSelf,
+                childCount = go.transform.childCount,
+                components = new System.Collections.Generic.List<string>(),
+                children = new System.Collections.Generic.List<PrefabHierarchyNode>()
+            };
+
+            if (includeComponents)
+            {
+                foreach (var component in go.GetComponents<Component>())
+                {
+                    if (component != null)
+                    {
+                        node.components.Add(component.GetType().Name);
+                    }
+                }
+            }
+
+            if (remainingDepth <= 0)
+            {
+                if (go.transform.childCount > 0)
+                {
+                    truncated = true;
+                }
+
+                return node;
+            }
+
+            foreach (Transform child in go.transform)
+            {
+                if (!includeInactive && !child.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                node.children.Add(BuildHierarchyNode(
+                    child.gameObject,
+                    path + "/" + child.gameObject.name,
+                    remainingDepth - 1,
+                    includeInactive,
+                    includeComponents,
+                    ref truncated));
+            }
+
+            return node;
+        }
+
         private CommandResult ApplyPrefab(CommandRequest request)
         {
             var gameObjectPath = request.GetParam<string>("gameObjectPath", null);
@@ -254,6 +347,17 @@ namespace AIBridge.Editor
                 prefabPath = prefabPath,
                 applied = true
             });
+        }
+
+        [Serializable]
+        private class PrefabHierarchyNode
+        {
+            public string name;
+            public string path;
+            public bool active;
+            public System.Collections.Generic.List<string> components;
+            public int childCount;
+            public System.Collections.Generic.List<PrefabHierarchyNode> children;
         }
     }
 }

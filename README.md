@@ -130,6 +130,9 @@ AIBridgeCLI transform set_position --path "MyCube" --x 1 --y 2 --z 3
 # Get scene hierarchy
 AIBridgeCLI scene get_hierarchy
 
+# Get prefab hierarchy
+AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+
 # Capture screenshot
 AIBridgeCLI screenshot game
 
@@ -151,7 +154,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `inspector` | Component/Inspector operations |
 | `selection` | Selection operations |
 | `scene` | Scene operations (load, save, hierarchy) |
-| `prefab` | Prefab operations (instantiate, save, unpack) |
+| `prefab` | Prefab operations (instantiate, inspect, save, unpack) |
 | `asset` | AssetDatabase operations |
 | `menu_item` | Invoke Unity menu items |
 | `get_logs` | Get Unity console logs |
