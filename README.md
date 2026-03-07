@@ -135,6 +135,9 @@ AIBridgeCLI screenshot game
 
 # Record GIF
 AIBridgeCLI screenshot gif --frameCount 60 --fps 20
+
+# Record GIF with delayed start
+AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 ```
 
 ### Available Commands

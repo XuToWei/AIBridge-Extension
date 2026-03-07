@@ -136,6 +136,9 @@ AIBridgeCLI screenshot game
 
 # 录制 GIF
 AIBridgeCLI screenshot gif --frameCount 60 --fps 20
+
+# 延迟开始录制 GIF
+AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 ```
 
 ### 可用命令

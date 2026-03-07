@@ -18,6 +18,7 @@ namespace AIBridge.Editor
         private int _gifFps;
         private float _gifScale;
         private int _gifColorCount;
+        private float _gifStartDelay;
 
         [MenuItem("AIBridge/Settings")]
         private static void OpenWindow()
@@ -42,6 +43,7 @@ namespace AIBridge.Editor
             _gifFps = GifRecorderSettings.DefaultFps;
             _gifScale = GifRecorderSettings.DefaultScale;
             _gifColorCount = GifRecorderSettings.DefaultColorCount;
+            _gifStartDelay = GifRecorderSettings.DefaultStartDelay;
         }
 
         private void OnGUI()
@@ -107,6 +109,8 @@ namespace AIBridge.Editor
 
             _gifColorCount = EditorGUILayout.IntSlider("Color Count", _gifColorCount, 64, 256);
 
+            _gifStartDelay = EditorGUILayout.Slider("Start Delay (s)", _gifStartDelay, 0f, 5f);
+
             EditorGUILayout.Space(5);
 
             EditorGUILayout.BeginHorizontal();
@@ -116,6 +120,7 @@ namespace AIBridge.Editor
                 GifRecorderSettings.DefaultFps = _gifFps;
                 GifRecorderSettings.DefaultScale = _gifScale;
                 GifRecorderSettings.DefaultColorCount = _gifColorCount;
+                GifRecorderSettings.DefaultStartDelay = _gifStartDelay;
                 Debug.Log("[AIBridge] GIF settings saved.");
             }
 

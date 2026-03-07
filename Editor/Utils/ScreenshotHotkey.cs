@@ -52,14 +52,16 @@ namespace AIBridge.Editor
             int fps = GifRecorderSettings.DefaultFps;
             float scale = GifRecorderSettings.DefaultScale;
             int colorCount = GifRecorderSettings.DefaultColorCount;
+            float startDelay = GifRecorderSettings.DefaultStartDelay;
 
-            Debug.Log($"[AIBridge] Starting GIF recording: {frameCount} frames @ {fps} fps...");
+            Debug.Log($"[AIBridge] Starting GIF recording: {frameCount} frames @ {fps} fps (delay {startDelay:F1}s)...");
 
             GifRecorder.StartRecording(
                 frameCount,
                 fps,
                 scale,
                 colorCount,
+                startDelay,
                 onComplete: result =>
                 {
                     EditorUtility.ClearProgressBar();
@@ -108,6 +110,7 @@ namespace AIBridge.Editor
         private int _fps;
         private float _scale;
         private int _colorCount;
+        private float _startDelay;
 
         public static void ShowWindow()
         {
@@ -127,6 +130,7 @@ namespace AIBridge.Editor
             _fps = GifRecorderSettings.DefaultFps;
             _scale = GifRecorderSettings.DefaultScale;
             _colorCount = GifRecorderSettings.DefaultColorCount;
+            _startDelay = GifRecorderSettings.DefaultStartDelay;
         }
 
         private void OnGUI()
@@ -151,6 +155,8 @@ namespace AIBridge.Editor
             EditorGUILayout.LabelField($"  Output: {(int)(1920 * _scale)}x{(int)(1080 * _scale)} (at 1080p)", EditorStyles.miniLabel);
 
             _colorCount = EditorGUILayout.IntSlider("Color Count", _colorCount, 64, 256);
+
+            _startDelay = EditorGUILayout.Slider("Start Delay (s)", _startDelay, 0f, 5f);
 
             EditorGUILayout.Space(20);
 
@@ -185,6 +191,7 @@ namespace AIBridge.Editor
             GifRecorderSettings.DefaultFps = _fps;
             GifRecorderSettings.DefaultScale = _scale;
             GifRecorderSettings.DefaultColorCount = _colorCount;
+            GifRecorderSettings.DefaultStartDelay = _startDelay;
         }
     }
 }

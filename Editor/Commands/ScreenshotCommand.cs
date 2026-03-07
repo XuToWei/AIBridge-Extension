@@ -75,6 +75,7 @@ namespace AIBridge.Editor
             int fps = request.GetParam("fps", 20);
             float scale = request.GetParam("scale", 0.5f);
             int colorCount = request.GetParam("colorCount", 128);
+            float startDelay = request.GetParam("startDelay", 0f);
 
             // Check if already recording
             if (GifRecorder.IsRecording || _gifRecordingInProgress)
@@ -98,6 +99,7 @@ namespace AIBridge.Editor
                 fps,
                 scale,
                 colorCount,
+                startDelay,
                 onComplete: OnGifRecordingComplete
             );
 

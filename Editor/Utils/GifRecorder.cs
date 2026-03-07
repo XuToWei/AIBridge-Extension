@@ -41,6 +41,7 @@ namespace AIBridge.Editor
         private static int _fps;
         private static float _scale;
         private static int _colorCount;
+        private static float _startDelay;
         private static Action<GifRecordResult> _onComplete;
         private static Action<int, int> _onProgress;
 
@@ -51,6 +52,8 @@ namespace AIBridge.Editor
         private static double _frameInterval;
         private static int _capturedFrames;
         private static bool _stopRequested;
+        private static bool _captureStarted;
+        private static double _captureStartTime;
 
         // Streaming encoder
         private static FileStream _outputStream;
@@ -67,6 +70,7 @@ namespace AIBridge.Editor
             int fps = 20,
             float scale = 0.5f,
             int colorCount = 128,
+            float startDelay = 0.1f,
             Action<GifRecordResult> onComplete = null,
             Action<int, int> onProgress = null)
         {
@@ -95,6 +99,7 @@ namespace AIBridge.Editor
             _fps = Mathf.Clamp(fps, 10, 30);
             _scale = Mathf.Clamp(scale, 0.25f, 1f);
             _colorCount = Mathf.Clamp(colorCount, 64, 256);
+            _startDelay = Mathf.Clamp(startDelay, 0f, 5f);
             _onComplete = onComplete;
             _onProgress = onProgress;
 
@@ -102,9 +107,11 @@ namespace AIBridge.Editor
             _frameWidth = 0;
             _frameHeight = 0;
             _frameInterval = 1.0 / _fps;
-            _lastCaptureTime = EditorApplication.timeSinceStartup;
+            _lastCaptureTime = 0;
             _capturedFrames = 0;
             _stopRequested = false;
+            _captureStarted = false;
+            _captureStartTime = EditorApplication.timeSinceStartup + _startDelay;
             _recordingStartTime = DateTime.Now;
 
             // Prepare output file
@@ -119,7 +126,7 @@ namespace AIBridge.Editor
             IsRecording = true;
             EditorApplication.update += OnUpdate;
 
-            AIBridgeLogger.LogInfo($"GIF recording started: {_targetFrameCount} frames @ {_fps} fps, scale {_scale}");
+            AIBridgeLogger.LogInfo($"GIF recording started: {_targetFrameCount} frames @ {_fps} fps, scale {_scale}, start delay {_startDelay:F2}s");
         }
 
         /// <summary>
@@ -142,6 +149,18 @@ namespace AIBridge.Editor
             }
 
             double currentTime = EditorApplication.timeSinceStartup;
+
+            if (!_captureStarted)
+            {
+                if (currentTime < _captureStartTime)
+                {
+                    return;
+                }
+
+                _captureStarted = true;
+                _lastCaptureTime = currentTime - _frameInterval;
+            }
+
             double actualInterval = currentTime - _lastCaptureTime;
 
             if (actualInterval < _frameInterval)

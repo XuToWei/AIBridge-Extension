@@ -425,6 +425,9 @@ AIBridgeCLI.exe screenshot gif --frameCount 50 --raw
 
 # With custom parameters
 AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --scale 0.5 --colorCount 128 --raw
+
+# With delayed start (useful for manual capture timing)
+AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --startDelay 0.5 --raw
 ```
 
 **Parameters:**
@@ -435,6 +438,7 @@ AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --scale 0.5 --colorCoun
 | `--fps` | 10-30 | 25 | Frames per second |
 | `--scale` | 0.25-1.0 | 0.5 | Resolution scale factor |
 | `--colorCount` | 64-256 | 128 | GIF palette color count |
+| `--startDelay` | 0-5 seconds | 0 | Delay before capture starts |
 
 **Response:**
 
