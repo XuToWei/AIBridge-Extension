@@ -1,14 +1,16 @@
+using System;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
+using UnityEngine;
 
 namespace AIBridge.Editor
 {
+    [Serializable]
     internal sealed class InjectedBlockMetadata
     {
-        public string assistant { get; set; }
-        public string templateId { get; set; }
-        public int version { get; set; }
-        public string target { get; set; }
+        public string assistant;
+        public string templateId;
+        public int version;
+        public string target;
     }
 
     internal sealed class InjectionBlockMatch
@@ -63,7 +65,7 @@ namespace AIBridge.Editor
                 target = metadata.Target
             };
 
-            return "<!-- AIBRIDGE:START " + JsonConvert.SerializeObject(payload) + " -->\n"
+            return "<!-- AIBRIDGE:START " + JsonUtility.ToJson(payload) + " -->\n"
                 + renderedBody.Trim() + "\n"
                 + "<!-- AIBRIDGE:END -->";
         }
@@ -72,7 +74,7 @@ namespace AIBridge.Editor
         {
             try
             {
-                return JsonConvert.DeserializeObject<InjectedBlockMetadata>(json);
+                return JsonUtility.FromJson<InjectedBlockMetadata>(json);
             }
             catch
             {
