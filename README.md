@@ -59,9 +59,8 @@ AI Bridge enables AI coding assistants (like Claude, GPT, etc.) to communicate w
 
 ## Requirements
 
-- Unity 2021.3 or later
+- Unity 2019.4 or later
 - .NET 6.0 Runtime (for CLI tool)
-- Newtonsoft.Json (com.unity.nuget.newtonsoft-json)
 
 ## Package Structure
 

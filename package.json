@@ -2,7 +2,7 @@
   "name": "cn.lys.aibridge",
   "displayName": "AI Bridge",
   "version": "1.1.2",
-  "unity": "2021.3",
+  "unity": "2019.4",
   "description": "File-based communication framework between AI Code assistants and Unity Editor. Provides stable, extensible command execution without MCP dependencies.",
   "author": {
     "name": "liyingsong"
@@ -14,8 +14,5 @@
     "tools",
     "communication",
     "automation"
-  ],
-  "dependencies": {
-    "com.unity.nuget.newtonsoft-json": "3.2.1"
-  }
+  ]
 }
