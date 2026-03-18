@@ -12,7 +12,7 @@ File-based communication framework between AI Code assistants and Unity Editor.
 - **Scene** - Load, save, get hierarchy, create new
 - **Prefab** - Instantiate, save, unpack, apply overrides
 - **Asset** - Search, import, refresh, find by filter
-- **Text Asset Read** - Read scripts, YAML/text assets, and config-like files by Unity path
+- **Text Asset Read (Fallback)** - Read scripts, YAML/text assets, and config-like files by Unity path when host-native file reads are unavailable
 - **Editor Control** - Compile, undo/redo, play mode, focus window
 - **Screenshot & GIF** - Capture game view, record animated GIFs
 - **Batch Commands** - Execute multiple commands efficiently
@@ -112,39 +112,41 @@ AI Bridge automatically starts when Unity Editor opens. Commands are processed f
 
 ### CLI Tool
 
-The CLI tool (`AIBridgeCLI.exe`) provides a command-line interface for sending commands.
+The CLI tool is copied to `./AIBridgeCache/CLI/AIBridgeCLI.exe`. Run the examples below from the Unity project root.
 
 ```bash
 # Show help
-AIBridgeCLI --help
+./AIBridgeCache/CLI/AIBridgeCLI.exe --help
 
 # Send a log message
-AIBridgeCLI editor log --message "Hello from AI!"
+./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Hello from AI!"
 
 # Create a GameObject
-AIBridgeCLI gameobject create --name "MyCube" --primitiveType Cube
+./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
 
 # Set transform position
-AIBridgeCLI transform set_position --path "MyCube" --x 1 --y 2 --z 3
+./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "MyCube" --x 1 --y 2 --z 3
 
 # Get scene hierarchy
-AIBridgeCLI scene get_hierarchy
+./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy
 
 # Get prefab hierarchy
-AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
 
-# Search through Unity index, then read text content by asset path
-AIBridgeCLI asset search --mode script --keyword "Player" --raw
-AIBridgeCLI asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+# Search through Unity index to resolve the canonical asset path
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --raw
+
+# Optional fallback: read text through AIBridge only when native file reads are unavailable
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
 
 # Capture screenshot
-AIBridgeCLI screenshot game
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
 
 # Record GIF
-AIBridgeCLI screenshot gif --frameCount 60 --fps 20
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 60 --fps 20
 
 # Record GIF with delayed start
-AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 ```
 
 ### Available Commands
@@ -159,7 +161,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `selection` | Selection operations |
 | `scene` | Scene operations (load, save, hierarchy) |
 | `prefab` | Prefab operations (instantiate, inspect, save, unpack) |
-| `asset` | AssetDatabase operations, including indexed lookup and text reads |
+| `asset` | AssetDatabase operations, including indexed lookup, canonical path resolution, metadata checks, and fallback text reads |
 | `menu_item` | Invoke Unity menu items |
 | `get_logs` | Get Unity console logs |
 | `batch` | Execute multiple commands |
@@ -218,8 +220,10 @@ AIBridgeRuntime.Instance.RegisterHandler(new MyCustomHandler());
 For large Unity projects, prefer AIBridge asset queries before generic filesystem search:
 
 1. Use `asset search` / `asset find` to discover the canonical Unity asset path.
-2. Use `asset read_text` to inspect text-based assets such as `.cs`, `.shader`, `.json`, `.asset`, `.prefab`, `.unity`, `.mat`, `.meta`, and similar files under the project root.
-3. Fall back to generic repo search only if the target cannot be resolved through AIBridge.
+2. Use `asset get_path` when you start from a GUID, and `asset load` when you want quick metadata confirmation.
+3. Once the path is known, prefer your AI assistant's native file-read tool for text-based assets such as `.cs`, `.shader`, `.json`, `.asset`, `.prefab`, `.unity`, `.mat`, `.meta`, and similar files under the project root.
+4. Use `asset read_text` only as a fallback when native reads are unavailable or when you specifically want a Unity-side line window.
+5. Fall back to generic repo search only if the target cannot be resolved through AIBridge.
 
 ## Command Protocol
 

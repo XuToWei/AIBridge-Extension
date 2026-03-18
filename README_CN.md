@@ -12,7 +12,7 @@ AI 编码助手与 Unity Editor 之间的文件通信框架。
 - **Scene** - 加载、保存、获取层级、创建新场景
 - **Prefab** - 实例化、保存、解包、应用覆盖
 - **Asset** - 搜索、导入、刷新、按过滤器查找
-- **文本资产读取** - 按 Unity 路径读取脚本、YAML/文本资源和配置类文件
+- **文本资产读取（备用）** - 当宿主缺少原生文件读取能力时，按 Unity 路径读取脚本、YAML/文本资源和配置类文件
 - **编辑器控制** - 编译、撤销/重做、播放模式、聚焦窗口
 - **截图 & GIF** - 捕获游戏视图、录制动画 GIF
 - **批量命令** - 高效执行多个命令
@@ -113,39 +113,41 @@ AI Bridge 在 Unity Editor 打开时自动启动。命令从 `AIBridgeCache/comm
 
 ### CLI 工具
 
-CLI 工具（`AIBridgeCLI.exe`）提供命令行接口用于发送命令。
+CLI 会复制到 `./AIBridgeCache/CLI/AIBridgeCLI.exe`。以下示例默认都在 Unity 工程根目录执行。
 
 ```bash
 # 显示帮助
-AIBridgeCLI --help
+./AIBridgeCache/CLI/AIBridgeCLI.exe --help
 
 # 发送日志消息
-AIBridgeCLI editor log --message "Hello from AI!"
+./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Hello from AI!"
 
 # 创建 GameObject
-AIBridgeCLI gameobject create --name "MyCube" --primitiveType Cube
+./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
 
 # 设置 Transform 位置
-AIBridgeCLI transform set_position --path "MyCube" --x 1 --y 2 --z 3
+./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "MyCube" --x 1 --y 2 --z 3
 
 # 获取场景层级
-AIBridgeCLI scene get_hierarchy
+./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy
 
 # 获取 Prefab 层级结构
-AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
 
-# 先通过 Unity 索引搜索，再按资源路径读取文本内容
-AIBridgeCLI asset search --mode script --keyword "Player" --raw
-AIBridgeCLI asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+# 先通过 Unity 索引解析规范资源路径
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --raw
+
+# 仅在宿主无法直接读取文件时，才回退到 AIBridge 文本读取
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
 
 # 捕获截图
-AIBridgeCLI screenshot game
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
 
 # 录制 GIF
-AIBridgeCLI screenshot gif --frameCount 60 --fps 20
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 60 --fps 20
 
 # 延迟开始录制 GIF
-AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 ```
 
 ### 可用命令
@@ -160,7 +162,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `selection` | 选择操作 |
 | `scene` | 场景操作（加载、保存、层级） |
 | `prefab` | 预制体操作（实例化、信息查看、保存、解包） |
-| `asset` | AssetDatabase 操作，包括索引查询与文本读取 |
+| `asset` | AssetDatabase 操作，包括索引查询、规范路径解析、元数据确认，以及备用文本读取 |
 | `menu_item` | 调用 Unity 菜单项 |
 | `get_logs` | 获取 Unity 控制台日志 |
 | `batch` | 执行多个命令 |
@@ -219,8 +221,10 @@ AIBridgeRuntime.Instance.RegisterHandler(new MyCustomHandler());
 对于大型 Unity 工程，优先使用 AIBridge 的资产查询，而不是通用文件系统搜索：
 
 1. 先用 `asset search` / `asset find` 通过 Unity AssetDatabase 索引定位规范资源路径。
-2. 已知路径后，用 `asset read_text` 读取 `.cs`、`.shader`、`.json`、`.asset`、`.prefab`、`.unity`、`.mat`、`.meta` 等文本类文件内容。
-3. 只有当 AIBridge 无法覆盖目标时，才回退到通用 repo 搜索工具。
+2. 如果起点是 GUID，就用 `asset get_path`；如果想先确认资源元数据，就用 `asset load`。
+3. 已知路径后，优先使用 AI 宿主自带的文件读取工具读取 `.cs`、`.shader`、`.json`、`.asset`、`.prefab`、`.unity`、`.mat`、`.meta` 等文本类文件内容。
+4. 只有当宿主无法直接读取，或你明确需要 Unity 侧的行窗读取时，才使用 `asset read_text`。
+5. 只有当 AIBridge 无法覆盖目标时，才回退到通用 repo 搜索工具。
 
 ## 命令协议
 
