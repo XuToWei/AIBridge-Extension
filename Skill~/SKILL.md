@@ -20,6 +20,26 @@ Activate this skill when you need to:
 - **Capture screenshots or record animated GIFs** (requires Play Mode)
 - **Execute multiple commands efficiently** (use `multi` command)
 
+## Search & Query Priority for Unity Projects
+
+When you need to locate or inspect files **inside a Unity project**, prefer AIBridge before generic repo search tools.
+
+**Use AIBridge first for:**
+
+- Asset/resource lookup in large Unity projects
+- Finding scripts, prefabs, scenes, materials, textures, ScriptableObjects
+- Resolving the canonical Unity asset path before opening a file
+- Reading text-based Unity assets or project files under the project root
+
+**Recommended workflow:**
+
+1. Use `asset search` or `asset find` to locate candidate files through Unity's AssetDatabase index
+2. Use `asset get_path` when you only have a GUID
+3. Use `asset read_text` to read text-based assets by path with line windows
+4. Only fall back to generic `grep` / filesystem search when AIBridge cannot cover the target
+
+**Why:** Unity's AssetDatabase index is usually faster and more accurate than generic file search for large Unity projects, especially for assets that AI may not find reliably with repo search alone.
+
 ---
 
 ## AIBridgeCLI - Recommended Method
@@ -373,6 +393,10 @@ AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --raw        # Search 
 AIBridgeCLI.exe asset search --mode all --keyword "Config" --raw       # Search all assets
 AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --raw       # Custom filter
 
+# Read text content from a known asset path (AI-friendly line window)
+AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+AIBridgeCLI.exe asset read_text --assetPath "Assets/Configs/GameConfig.asset" --startLine 1 --maxLines 80 --raw
+
 # Preset modes: all, prefab, scene, script, texture, material, audio, animation, shader, font, model, so
 
 # Find Assets (precise control)
@@ -386,7 +410,12 @@ AIBridgeCLI.exe asset refresh
 # Get Path from GUID / Load Asset Info
 AIBridgeCLI.exe asset get_path --guid "abc123..."
 AIBridgeCLI.exe asset load --assetPath "Assets/Prefabs/Player.prefab"
+
+# Read text-based asset/project files
+AIBridgeCLI.exe asset read_text --assetPath "Assets/Scenes/Main.unity" --startLine 1 --maxLines 200 --maxChars 12000 --raw
 ```
+
+**AI priority note:** For Unity-internal file discovery, use `asset search` / `asset find` before generic repository search. Once the path is known, use `asset read_text` for text assets whenever possible.
 
 ### 9. `menu_item` - Invoke Menu Item
 

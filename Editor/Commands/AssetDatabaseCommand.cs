@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using UnityEditor;
 using UnityEngine;
 
 namespace AIBridge.Editor
 {
     /// <summary>
-    /// Asset database operations: find, import, refresh, search
+    /// Asset database operations: find, import, refresh, search, read_text
     /// Supports multiple sub-commands via "action" parameter
     /// </summary>
     public class AssetDatabaseCommand : ICommand
@@ -53,8 +55,10 @@ namespace AIBridge.Editor
                         return GetAssetPath(request);
                     case "load":
                         return LoadAsset(request);
+                    case "read_text":
+                        return ReadTextAsset(request);
                     default:
-                        return CommandResult.Failure(request.id, $"Unknown action: {action}. Supported: find, search, import, refresh, get_path, load");
+                        return CommandResult.Failure(request.id, $"Unknown action: {action}. Supported: find, search, import, refresh, get_path, load, read_text");
                 }
             }
             catch (Exception ex)
@@ -256,6 +260,97 @@ namespace AIBridge.Editor
                 path = assetPath,
                 type = asset.GetType().Name,
                 instanceId = asset.GetInstanceID()
+            });
+        }
+
+        private CommandResult ReadTextAsset(CommandRequest request)
+        {
+            var assetPath = request.GetParam<string>("assetPath");
+            if (string.IsNullOrEmpty(assetPath))
+            {
+                return CommandResult.Failure(request.id, "Missing 'assetPath' parameter");
+            }
+
+            var startLine = Math.Max(1, request.GetParam("startLine", 1));
+            var maxLines = Math.Max(1, request.GetParam("maxLines", 200));
+            var maxChars = Math.Max(200, request.GetParam("maxChars", 12000));
+
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            var normalizedAssetPath = assetPath.Replace('\\', '/');
+            var fullPath = Path.GetFullPath(Path.Combine(projectRoot, normalizedAssetPath));
+            var fullProjectRoot = Path.GetFullPath(projectRoot + Path.DirectorySeparatorChar);
+
+            if (!fullPath.StartsWith(fullProjectRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                return CommandResult.Failure(request.id, $"Asset path escapes project root: {assetPath}");
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                return CommandResult.Failure(request.id, $"Text asset not found at path: {assetPath}");
+            }
+
+            var text = File.ReadAllText(fullPath, Encoding.UTF8);
+            var allLines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+            var startIndex = startLine - 1;
+
+            if (startIndex >= allLines.Length)
+            {
+                return CommandResult.Success(request.id, new
+                {
+                    path = normalizedAssetPath,
+                    totalLines = allLines.Length,
+                    returnedLineStart = startLine,
+                    returnedLineEnd = startLine - 1,
+                    returnedLineCount = 0,
+                    truncated = false,
+                    content = string.Empty
+                });
+            }
+
+            var builder = new StringBuilder();
+            var currentLine = startLine;
+            var returnedLines = 0;
+            var truncated = false;
+
+            for (var i = startIndex; i < allLines.Length; i++)
+            {
+                var lineWithNumber = $"{currentLine}: {allLines[i]}";
+                var separatorLength = returnedLines > 0 ? 1 : 0;
+                if (builder.Length + separatorLength + lineWithNumber.Length > maxChars)
+                {
+                    truncated = true;
+                    break;
+                }
+
+                if (returnedLines > 0)
+                {
+                    builder.Append('\n');
+                }
+
+                builder.Append(lineWithNumber);
+                returnedLines++;
+
+                if (returnedLines >= maxLines)
+                {
+                    truncated = i < allLines.Length - 1;
+                    break;
+                }
+
+                currentLine++;
+            }
+
+            var returnedLineEnd = returnedLines == 0 ? startLine - 1 : startLine + returnedLines - 1;
+
+            return CommandResult.Success(request.id, new
+            {
+                path = normalizedAssetPath,
+                totalLines = allLines.Length,
+                returnedLineStart = startLine,
+                returnedLineEnd = returnedLineEnd,
+                returnedLineCount = returnedLines,
+                truncated = truncated,
+                content = builder.ToString()
             });
         }
 

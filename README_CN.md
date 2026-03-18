@@ -12,6 +12,7 @@ AI 编码助手与 Unity Editor 之间的文件通信框架。
 - **Scene** - 加载、保存、获取层级、创建新场景
 - **Prefab** - 实例化、保存、解包、应用覆盖
 - **Asset** - 搜索、导入、刷新、按过滤器查找
+- **文本资产读取** - 按 Unity 路径读取脚本、YAML/文本资源和配置类文件
 - **编辑器控制** - 编译、撤销/重做、播放模式、聚焦窗口
 - **截图 & GIF** - 捕获游戏视图、录制动画 GIF
 - **批量命令** - 高效执行多个命令
@@ -133,6 +134,10 @@ AIBridgeCLI scene get_hierarchy
 # 获取 Prefab 层级结构
 AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
 
+# 先通过 Unity 索引搜索，再按资源路径读取文本内容
+AIBridgeCLI asset search --mode script --keyword "Player" --raw
+AIBridgeCLI asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+
 # 捕获截图
 AIBridgeCLI screenshot game
 
@@ -155,7 +160,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `selection` | 选择操作 |
 | `scene` | 场景操作（加载、保存、层级） |
 | `prefab` | 预制体操作（实例化、信息查看、保存、解包） |
-| `asset` | AssetDatabase 操作 |
+| `asset` | AssetDatabase 操作，包括索引查询与文本读取 |
 | `menu_item` | 调用 Unity 菜单项 |
 | `get_logs` | 获取 Unity 控制台日志 |
 | `batch` | 执行多个命令 |
@@ -208,6 +213,14 @@ public class MyCustomHandler : IAIBridgeHandler
 // 注册处理器
 AIBridgeRuntime.Instance.RegisterHandler(new MyCustomHandler());
 ```
+
+## 推荐的 AI 查询流程
+
+对于大型 Unity 工程，优先使用 AIBridge 的资产查询，而不是通用文件系统搜索：
+
+1. 先用 `asset search` / `asset find` 通过 Unity AssetDatabase 索引定位规范资源路径。
+2. 已知路径后，用 `asset read_text` 读取 `.cs`、`.shader`、`.json`、`.asset`、`.prefab`、`.unity`、`.mat`、`.meta` 等文本类文件内容。
+3. 只有当 AIBridge 无法覆盖目标时，才回退到通用 repo 搜索工具。
 
 ## 命令协议
 

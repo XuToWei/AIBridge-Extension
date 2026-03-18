@@ -12,6 +12,7 @@ File-based communication framework between AI Code assistants and Unity Editor.
 - **Scene** - Load, save, get hierarchy, create new
 - **Prefab** - Instantiate, save, unpack, apply overrides
 - **Asset** - Search, import, refresh, find by filter
+- **Text Asset Read** - Read scripts, YAML/text assets, and config-like files by Unity path
 - **Editor Control** - Compile, undo/redo, play mode, focus window
 - **Screenshot & GIF** - Capture game view, record animated GIFs
 - **Batch Commands** - Execute multiple commands efficiently
@@ -132,6 +133,10 @@ AIBridgeCLI scene get_hierarchy
 # Get prefab hierarchy
 AIBridgeCLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
 
+# Search through Unity index, then read text content by asset path
+AIBridgeCLI asset search --mode script --keyword "Player" --raw
+AIBridgeCLI asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+
 # Capture screenshot
 AIBridgeCLI screenshot game
 
@@ -154,7 +159,7 @@ AIBridgeCLI screenshot gif --frameCount 60 --fps 20 --startDelay 0.5
 | `selection` | Selection operations |
 | `scene` | Scene operations (load, save, hierarchy) |
 | `prefab` | Prefab operations (instantiate, inspect, save, unpack) |
-| `asset` | AssetDatabase operations |
+| `asset` | AssetDatabase operations, including indexed lookup and text reads |
 | `menu_item` | Invoke Unity menu items |
 | `get_logs` | Get Unity console logs |
 | `batch` | Execute multiple commands |
@@ -207,6 +212,14 @@ public class MyCustomHandler : IAIBridgeHandler
 // Register the handler
 AIBridgeRuntime.Instance.RegisterHandler(new MyCustomHandler());
 ```
+
+## Recommended AI Query Workflow
+
+For large Unity projects, prefer AIBridge asset queries before generic filesystem search:
+
+1. Use `asset search` / `asset find` to discover the canonical Unity asset path.
+2. Use `asset read_text` to inspect text-based assets such as `.cs`, `.shader`, `.json`, `.asset`, `.prefab`, `.unity`, `.mat`, `.meta`, and similar files under the project root.
+3. Fall back to generic repo search only if the target cannot be resolved through AIBridge.
 
 ## Command Protocol
 
