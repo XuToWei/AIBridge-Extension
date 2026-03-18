@@ -8,7 +8,7 @@ using UnityEngine;
 namespace AIBridge.Editor
 {
     /// <summary>
-    /// Asset database operations: find, import, refresh, search, read_text
+    /// Asset database operations: search, find, get_path, load, import, refresh, read_text (fallback)
     /// Supports multiple sub-commands via "action" parameter
     /// </summary>
     public class AssetDatabaseCommand : ICommand

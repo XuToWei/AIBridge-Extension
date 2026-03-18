@@ -107,7 +107,7 @@ namespace AIBridge.Editor
                 case "GetLogsCommand":
                     return "Get console logs from Unity Editor";
                 case "AssetDatabaseCommand":
-                    return "Asset database operations: find, search, read_text, import, refresh, load";
+                    return "Asset database operations: search, find, get_path, load, import, refresh, and fallback read_text";
                 case "SceneCommand":
                     return "Scene operations: load, save, get hierarchy";
                 case "EditorCommand":
@@ -148,9 +148,11 @@ namespace AIBridge.Editor
                 case "asset":
                     return new
                     {
-                        find = new { type = "asset", @params = new { action = "find", filter = "t:Prefab", maxResults = 10 } },
                         search = new { type = "asset", @params = new { action = "search", mode = "script", keyword = "Player", maxResults = 20 } },
-                        read_text = new { type = "asset", @params = new { action = "read_text", assetPath = "Assets/Scripts/Player.cs", startLine = 1, maxLines = 120, maxChars = 12000 } },
+                        find = new { type = "asset", @params = new { action = "find", filter = "t:Prefab", maxResults = 10 } },
+                        get_path = new { type = "asset", @params = new { action = "get_path", guid = "abc123..." } },
+                        load = new { type = "asset", @params = new { action = "load", assetPath = "Assets/Prefabs/Player.prefab" } },
+                        read_text_fallback = new { type = "asset", @params = new { action = "read_text", assetPath = "Assets/Scripts/Player.cs", startLine = 1, maxLines = 120, maxChars = 12000 } },
                         refresh = new { type = "asset", @params = new { action = "refresh" } }
                     };
 

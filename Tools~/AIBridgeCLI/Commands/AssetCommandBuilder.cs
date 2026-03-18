@@ -3,12 +3,12 @@ using System.Collections.Generic;
 namespace AIBridgeCLI.Commands
 {
     /// <summary>
-    /// Asset command builder: find, search, import, refresh, get_path, load, read_text
+    /// Asset command builder: search, find, get_path, load, import, refresh, read_text (fallback)
     /// </summary>
     public class AssetCommandBuilder : BaseCommandBuilder
     {
         public override string Type => "asset";
-        public override string Description => "AssetDatabase operations (find, search, read_text, import, refresh)";
+        public override string Description => "AssetDatabase operations (search, find, get_path, load, import, refresh, and fallback read_text)";
 
         public override string[] Actions => new[]
         {
