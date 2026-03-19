@@ -1,8 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using AIBridge.Internal.Json;
 using UnityEditor;
 
 namespace AIBridge.Editor
@@ -67,22 +66,24 @@ namespace AIBridge.Editor
 
                     var json = File.ReadAllText(file, System.Text.Encoding.UTF8);
 
-                    // Use Newtonsoft.Json for proper Dictionary support
-                    var jObject = JObject.Parse(json);
+                    var commandData = AIBridgeJson.DeserializeObject(json);
+                    if (commandData == null)
+                    {
+                        throw new InvalidOperationException("Command JSON root must be an object.");
+                    }
+
                     var request = new CommandRequest
                     {
-                        id = jObject["id"]?.ToString(),
-                        type = jObject["type"]?.ToString(),
+                        id = GetString(commandData, "id"),
+                        type = GetString(commandData, "type"),
                         @params = new System.Collections.Generic.Dictionary<string, object>()
                     };
 
-                    // Parse params
-                    var paramsObj = jObject["params"] as JObject;
-                    if (paramsObj != null)
+                    if (commandData.TryGetValue("params", out var paramsValue) && paramsValue is System.Collections.Generic.Dictionary<string, object> paramsObj)
                     {
-                        foreach (var prop in paramsObj.Properties())
+                        foreach (var entry in paramsObj)
                         {
-                            request.@params[prop.Name] = ConvertJTokenToObject(prop.Value);
+                            request.@params[entry.Key] = entry.Value;
                         }
                     }
 
@@ -238,12 +239,7 @@ namespace AIBridge.Editor
 
             try
             {
-                // Use Newtonsoft.Json for proper object serialization (supports anonymous types)
-                var json = JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore,
-                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-                });
+                var json = AIBridgeJson.Serialize(result, pretty: true);
                 File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
             }
             catch (Exception ex)
@@ -282,47 +278,14 @@ namespace AIBridge.Editor
             }
         }
 
-        /// <summary>
-        /// Convert JToken to appropriate .NET object
-        /// </summary>
-        private object ConvertJTokenToObject(JToken token)
+        private static string GetString(System.Collections.Generic.Dictionary<string, object> data, string key)
         {
-            switch (token.Type)
+            if (!data.TryGetValue(key, out var value) || value == null)
             {
-                case JTokenType.Object:
-                    var dict = new System.Collections.Generic.Dictionary<string, object>();
-                    foreach (var prop in ((JObject)token).Properties())
-                    {
-                        dict[prop.Name] = ConvertJTokenToObject(prop.Value);
-                    }
-                    return dict;
-
-                case JTokenType.Array:
-                    var list = new System.Collections.Generic.List<object>();
-                    foreach (var item in (JArray)token)
-                    {
-                        list.Add(ConvertJTokenToObject(item));
-                    }
-                    return list;
-
-                case JTokenType.Integer:
-                    return token.Value<long>();
-
-                case JTokenType.Float:
-                    return token.Value<double>();
-
-                case JTokenType.String:
-                    return token.Value<string>();
-
-                case JTokenType.Boolean:
-                    return token.Value<bool>();
-
-                case JTokenType.Null:
-                    return null;
-
-                default:
-                    return token.ToString();
+                return null;
             }
+
+            return value.ToString();
         }
     }
 }

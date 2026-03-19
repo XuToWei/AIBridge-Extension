@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Newtonsoft.Json;
+using AIBridge.Internal.Json;
 using UnityEditor;
 using UnityEngine;
 
@@ -164,11 +164,7 @@ namespace AIBridge.Editor
                 }
 
                 var filePath = Path.Combine(resultsDir, $"{result.id}.json");
-                var json = JsonConvert.SerializeObject(result, Formatting.Indented, new JsonSerializerSettings
-                {
-                    NullValueHandling = NullValueHandling.Ignore,
-                    ReferenceLoopHandling = ReferenceLoopHandling.Ignore
-                });
+                var json = AIBridgeJson.Serialize(result, pretty: true);
                 File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
 
                 AIBridgeLogger.LogInfo($"GIF recording result written: {result.id}, success={result.success}");
