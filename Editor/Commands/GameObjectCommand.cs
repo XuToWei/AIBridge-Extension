@@ -136,7 +136,7 @@ namespace AIBridge.Editor
             else
             {
                 GameObject[] allObjects;
-#if UNITY_2020_3_OR_NEWER
+#if UNITY_2021_3_OR_NEWER
                 allObjects = UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
 #else
                 allObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
