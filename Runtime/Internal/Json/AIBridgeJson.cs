@@ -7,7 +7,7 @@ using System.Text;
 
 namespace AIBridge.Internal.Json
 {
-    internal static class AIBridgeJson
+    public static class AIBridgeJson
     {
         public static Dictionary<string, object> DeserializeObject(string json)
         {
