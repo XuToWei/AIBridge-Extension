@@ -33,9 +33,9 @@ When you need to locate files or inspect Unity-managed assets **inside a Unity p
 
 **Recommended workflow:**
 
-1. Use `asset search` or `asset find` to locate candidate files through Unity's AssetDatabase index
-2. Use `asset get_path` when you only have a GUID
-3. Use `asset load` when you want to confirm asset metadata before opening it
+1. Use `asset search` or `asset find` with `format=paths` to locate candidate files through Unity's AssetDatabase index with minimal response payload
+2. Use `asset get_path` only when you only have a GUID
+3. Use `asset load` only when you want to confirm asset metadata before opening it
 4. Once the canonical path is known, use your host AI's native file-read tool to inspect file contents
 5. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed
 6. Only fall back to generic `grep` / filesystem search when AIBridge cannot cover the target
@@ -118,7 +118,7 @@ When invoking from PowerShell, use the `&` call operator:
 | `--stdin` | Read parameters from stdin (JSON format) |
 | `--help` | Show help |
 
-**AI Usage:** Always add `--raw` for JSON output, prefer `asset search` / `asset find` / `asset get_path` for canonical Unity paths, and read file contents with the host AI's native file-read tool before falling back to `asset read_text`.
+**AI Usage:** Always add `--raw` for JSON output, prefer `asset search` / `asset find --format paths` for canonical Unity paths, use `asset get_path` only when starting from a GUID, and read file contents with the host AI's native file-read tool before falling back to `asset read_text`.
 
 All Windows examples below assume you run them from the Unity project root.
 
@@ -392,16 +392,16 @@ All Windows examples below assume you run them from the Unity project root.
 
 ```bash
 # Search Assets (recommended for canonical Unity paths)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --raw    # Search scripts
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --raw        # Search prefabs
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode all --keyword "Config" --raw       # Search all assets
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --raw       # Custom filter
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths --raw    # Search scripts
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --format paths --raw        # Search prefabs
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode all --keyword "Config" --format paths --raw       # Search all assets
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --format paths --raw       # Custom filter
 
 # Preset modes: all, prefab, scene, script, texture, material, audio, animation, shader, font, model, so
 
 # Find Assets (precise control)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab"
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Texture2D" --searchInFolders "Assets/Textures" --maxResults 50
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Texture2D" --format paths --searchInFolders "Assets/Textures" --maxResults 50 --raw
 
 # Import / Refresh
 ./AIBridgeCache/CLI/AIBridgeCLI.exe asset import --assetPath "Assets/Textures/icon.png"
@@ -417,7 +417,9 @@ All Windows examples below assume you run them from the Unity project root.
 ./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scenes/Main.unity" --startLine 1 --maxLines 200 --maxChars 12000 --raw
 ```
 
-**AI priority note:** For Unity-internal file discovery, use `asset search` / `asset find` before generic repository search. Once the path is known, prefer your host AI's native file-read tool for contents. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed.
+**AI priority note:** For Unity-internal file discovery, use `asset search` / `asset find` with `format=paths` before generic repository search. Use `asset get_path` only when starting from a GUID, and `asset load` only when metadata confirmation is needed. Once the path is known, prefer your host AI's native file-read tool for contents. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed.
+
+`format=full` (default) returns asset objects in `data.assets`. `format=paths` returns Unity asset path strings in `data.assets`, which is usually the most efficient shape for AI-driven lookup.
 
 ### 9. `menu_item` - Invoke Menu Item
 
