@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AIBridge.Internal.Json;
 using UnityEditor;
 using UnityEditor.Build;
 
@@ -131,7 +132,7 @@ namespace AIBridge.Editor
             var compileStartPayload = compileResult.data as Dictionary<string, object>;
             if (compileStartPayload == null)
             {
-                compileStartPayload = AIBridge.Internal.Json.AIBridgeJson.DeserializeObject(AIBridge.Internal.Json.AIBridgeJson.Serialize(compileResult.data));
+                compileStartPayload = AIBridgeJson.DeserializeObject(AIBridgeJson.Serialize(compileResult.data));
             }
 
             var alreadyCompiling = compileStartPayload != null && compileStartPayload.TryGetValue("alreadyCompiling", out var alreadyCompilingValue) && ToBool(alreadyCompilingValue);
@@ -578,7 +579,7 @@ namespace AIBridge.Editor
             var payload = compileStatus.data as Dictionary<string, object>;
             if (payload == null)
             {
-                payload = AIBridge.Internal.Json.AIBridgeJson.DeserializeObject(AIBridge.Internal.Json.AIBridgeJson.Serialize(compileStatus.data));
+                payload = AIBridgeJson.DeserializeObject(AIBridgeJson.Serialize(compileStatus.data));
             }
 
             var compileStatusValue = payload != null && payload.TryGetValue("status", out var statusValue) && statusValue != null
@@ -762,7 +763,7 @@ namespace AIBridge.Editor
                 return (int)longValue;
             }
 
-            return int.TryParse(value.ToString(), out var parsed) ? parsed : null;
+            return int.TryParse(value.ToString(), out var parsed) ? (int?)parsed : null;
         }
     }
 }
