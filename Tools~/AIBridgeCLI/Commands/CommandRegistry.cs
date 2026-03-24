@@ -101,11 +101,14 @@ namespace AIBridgeCLI.Commands
             sb.AppendLine("Global Options:");
             sb.AppendLine("  --timeout <ms>     Timeout in milliseconds (default: 5000)");
             sb.AppendLine("  --no-wait          Don't wait for result, return command ID immediately");
-            sb.AppendLine("  --raw              Output raw JSON (single line)");
+            sb.AppendLine("  --raw              Output compact raw JSON (default)");
+            sb.AppendLine("  --pretty           Output human-readable formatted text");
             sb.AppendLine("  --quiet            Quiet mode, minimal output");
             sb.AppendLine("  --json <json>      Pass complex parameters as JSON string");
             sb.AppendLine("  --stdin            Read parameters from stdin (JSON format)");
             sb.AppendLine("  --help             Show help");
+            sb.AppendLine();
+            sb.AppendLine("Default output is compact raw JSON. Use --pretty for human-readable output.");
             sb.AppendLine();
             sb.AppendLine("Examples:");
             sb.AppendLine("  AIBridgeCLI editor log --message \"Hello World\"");

@@ -24,7 +24,8 @@ namespace AIBridgeCLI.Commands
             ["unity"] = new List<ParameterInfo>
             {
                 new ParameterInfo("timeout", "Total compilation timeout in milliseconds", false, "120000"),
-                new ParameterInfo("poll-interval", "Status polling interval in milliseconds", false, "500")
+                new ParameterInfo("poll-interval", "Status polling interval in milliseconds", false, "500"),
+                new ParameterInfo("transport-timeout", "Per-request communication timeout in milliseconds (default: min(30000, timeout))", false, "auto")
             },
             ["dotnet"] = new List<ParameterInfo>
             {

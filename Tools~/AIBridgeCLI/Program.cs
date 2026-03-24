@@ -41,11 +41,12 @@ namespace AIBridgeCLI
             var timeout = parsed.GetInt("timeout", DEFAULT_TIMEOUT);
             var noWait = parsed.GetBool("no-wait");
             var raw = parsed.GetBool("raw");
+            var pretty = parsed.GetBool("pretty");
             var quiet = parsed.GetBool("quiet");
             var help = parsed.GetBool("help");
             var stdin = parsed.GetBool("stdin");
 
-            var outputMode = quiet ? OutputMode.Quiet : (raw ? OutputMode.Raw : OutputMode.Pretty);
+            var outputMode = quiet ? OutputMode.Quiet : (pretty ? OutputMode.Pretty : OutputMode.Raw);
 
             // Handle multi command (special case - executes multiple commands efficiently)
             if (parsed.CommandType != null && parsed.CommandType.Equals("multi", StringComparison.OrdinalIgnoreCase))
@@ -199,7 +200,7 @@ namespace AIBridgeCLI
                     var key = arg.Substring(2);
 
                     // Check for boolean flags
-                    if (key == "help" || key == "raw" || key == "quiet" || key == "no-wait" || key == "stdin" || key == "show-warnings")
+                    if (key == "help" || key == "raw" || key == "pretty" || key == "quiet" || key == "no-wait" || key == "stdin" || key == "show-warnings")
                     {
                         result.Options[key] = "true";
                         i++;
@@ -387,7 +388,8 @@ Options:
   --cmd <commands>   Commands separated by &
   --stdin            Read commands from stdin (one per line)
   --timeout <ms>     Timeout in milliseconds (default: 30000)
-  --raw              Output raw JSON
+  --raw              Output compact raw JSON (default)
+  --pretty           Output human-readable formatted text
   --quiet            Quiet mode
   --no-wait          Don't wait for result
 ";
@@ -522,7 +524,14 @@ Options:
         {
             var compileTimeout = parsed.Options.TryGetValue("timeout", out var t) && int.TryParse(t, out var tVal) ? tVal : 120000;
             var pollInterval = parsed.Options.TryGetValue("poll-interval", out var p) && int.TryParse(p, out var pVal) ? pVal : 500;
-            var commandTimeout = 10000; // Timeout for individual command communication
+            var commandTimeout = parsed.Options.TryGetValue("transport-timeout", out var ct) && int.TryParse(ct, out var ctVal)
+                ? ctVal
+                : GetDefaultUnityCompileTransportTimeout(compileTimeout, pollInterval);
+            var startedByInvocation = false;
+            var attachedToExistingCompilation = false;
+            var startCommunicationTimedOut = false;
+            var observedCompilationActivity = false;
+            string lastCommunicationError = null;
 
             if (outputMode == OutputMode.Pretty)
             {
@@ -543,23 +552,45 @@ Options:
             var startResult = sender.SendCommand(startRequest);
             if (!startResult.success)
             {
-                OutputUnityCompileResult(outputMode, false, "failed", 0, 0, 0,
-                    new List<object>(), new List<object>(),
-                    startResult.error ?? "Failed to start compilation. Make sure Unity Editor is running.");
-                return 1;
+                if (!IsTransportTimeoutError(startResult.error))
+                {
+                    OutputUnityCompileResult(outputMode, false, "failed", 0, 0, 0,
+                        new List<object>(), new List<object>(),
+                        startResult.error ?? "Failed to start compilation. Make sure Unity Editor is running.",
+                        startedByInvocation, attachedToExistingCompilation, false);
+                    return 1;
+                }
+
+                startCommunicationTimedOut = true;
+                lastCommunicationError = startResult.error;
+
+                if (outputMode == OutputMode.Pretty)
+                {
+                    OutputFormatter.PrintInfo("Unity did not acknowledge the compile request within the transport timeout. Waiting for compilation status...");
+                }
             }
 
-            // Check if already compiling or just started
-            var data = startResult.data as Newtonsoft.Json.Linq.JObject;
-            var alreadyCompiling = (bool?)data?["alreadyCompiling"] ?? false;
-            var compilationStarted = (bool?)data?["compilationStarted"] ?? false;
-
-            if (!compilationStarted && !alreadyCompiling)
+            if (startResult.success)
             {
-                // No compilation needed (no code changes)
-                OutputUnityCompileResult(outputMode, true, "idle", 0, 0, 0,
-                    new List<object>(), new List<object>(), null);
-                return 0;
+                // Check if already compiling or just started
+                var data = startResult.data as Newtonsoft.Json.Linq.JObject;
+                attachedToExistingCompilation = (bool?)data?["alreadyCompiling"] ?? false;
+                startedByInvocation = (bool?)data?["compilationStarted"] ?? false;
+                observedCompilationActivity = attachedToExistingCompilation || startedByInvocation;
+
+                if (!startedByInvocation && !attachedToExistingCompilation)
+                {
+                    // No compilation needed (no code changes)
+                    OutputUnityCompileResult(outputMode, true, "idle", 0, 0, 0,
+                        new List<object>(), new List<object>(), null,
+                        startedByInvocation, attachedToExistingCompilation, true);
+                    return 0;
+                }
+
+                if (outputMode == OutputMode.Pretty && attachedToExistingCompilation)
+                {
+                    OutputFormatter.PrintInfo("Unity is already compiling. Attaching to the current compilation and waiting for the final result...");
+                }
             }
 
             // Step 2: Poll for compilation status
@@ -582,6 +613,7 @@ Options:
                 if (!statusResult.success)
                 {
                     // Communication error, but compilation might still be running
+                    lastCommunicationError = statusResult.error;
                     continue;
                 }
 
@@ -592,6 +624,14 @@ Options:
                 if (isCompiling || status == "compiling")
                 {
                     // Still compiling, continue polling
+                    observedCompilationActivity = true;
+                    continue;
+                }
+
+                if (!observedCompilationActivity && (status == "idle" || status == "unknown"))
+                {
+                    // Start request may have timed out before Unity could respond.
+                    // Keep polling until we observe an actual compilation state or hit the outer timeout.
                     continue;
                 }
 
@@ -639,17 +679,46 @@ Options:
                     }
                 }
 
-                var success = status == "success" || (status == "idle" && errorCount == 0);
-                OutputUnityCompileResult(outputMode, success, status, duration, errorCount, warningCount, errors, warnings, null);
+                var success = status == "success" || (observedCompilationActivity && status == "idle" && errorCount == 0);
+                var resultError = success
+                    ? null
+                    : (startCommunicationTimedOut && string.IsNullOrEmpty(lastCommunicationError)
+                        ? "Unity compile request was not acknowledged immediately, but the final compilation result was retrieved."
+                        : null);
+
+                OutputUnityCompileResult(outputMode, success, status, duration, errorCount, warningCount, errors, warnings, resultError,
+                    startedByInvocation, attachedToExistingCompilation, true);
                 return success ? 0 : 1;
             }
 
             // Timeout
+            var timeoutReason = startCommunicationTimedOut
+                ? $"Compilation status could not be confirmed within {compileTimeout}ms after the initial compile request timed out. Unity may still be compiling. Last communication error: {lastCommunicationError ?? "unknown"}"
+                : $"Compilation timed out after {compileTimeout}ms. Unity may still be compiling.";
+
             OutputUnityCompileResult(outputMode, false, "timeout",
                 (DateTime.Now - startTime).TotalSeconds, 0, 0,
                 new List<object>(), new List<object>(),
-                $"Compilation timed out after {compileTimeout}ms. Unity may still be compiling.");
+                timeoutReason,
+                startedByInvocation, attachedToExistingCompilation, false);
             return 1;
+        }
+
+        static bool IsTransportTimeoutError(string error)
+        {
+            if (string.IsNullOrEmpty(error))
+            {
+                return false;
+            }
+
+            return error.IndexOf("Timeout waiting for result", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        static int GetDefaultUnityCompileTransportTimeout(int compileTimeout, int pollInterval)
+        {
+            var normalizedPollInterval = Math.Max(pollInterval, 100);
+            var preferredTimeout = Math.Min(30000, compileTimeout);
+            return Math.Max(normalizedPollInterval, preferredTimeout);
         }
 
         /// <summary>
@@ -657,7 +726,8 @@ Options:
         /// </summary>
         static void OutputUnityCompileResult(OutputMode outputMode, bool success, string status,
             double duration, int errorCount, int warningCount,
-            List<object> errors, List<object> warnings, string error)
+            List<object> errors, List<object> warnings, string error,
+            bool startedByInvocation = false, bool attachedToExistingCompilation = false, bool statusConfirmed = true)
         {
             if (outputMode == OutputMode.Raw || outputMode == OutputMode.Quiet)
             {
@@ -668,6 +738,9 @@ Options:
                     duration = Math.Round(duration, 2),
                     errorCount = errorCount,
                     warningCount = warningCount,
+                    startedByInvocation = startedByInvocation,
+                    attachedToExistingCompilation = attachedToExistingCompilation,
+                    statusConfirmed = statusConfirmed,
                     errors = errors,
                     warnings = warnings,
                     error = error
@@ -679,6 +752,11 @@ Options:
                 if (success)
                 {
                     OutputFormatter.PrintSuccess($"Unity compilation succeeded in {duration:F1}s");
+
+                    if (attachedToExistingCompilation)
+                    {
+                        OutputFormatter.PrintInfo("Result came from an existing Unity compilation already in progress.");
+                    }
                 }
                 else if (!string.IsNullOrEmpty(error))
                 {

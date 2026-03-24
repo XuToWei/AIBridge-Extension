@@ -69,7 +69,7 @@ When you need to locate files or inspect Unity-managed assets **inside a Unity p
 dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll <command> <action> [options]
 
 # Example
-dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll get_logs --logType Error --raw
+dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll get_logs --logType Error
 ```
 
 > **Note**: The CLI is built as a .NET assembly, so it can run on macOS/Linux via `dotnet` command from the Unity project root. Install .NET Runtime from https://dotnet.microsoft.com/download if not already installed.
@@ -103,7 +103,7 @@ Commands and results are stored in `AIBridgeCache/` under the Unity project root
 When invoking from PowerShell, use the `&` call operator:
 
 ```powershell
-& "./AIBridgeCache/CLI/AIBridgeCLI.exe" <command> <action> [options] --raw
+& "./AIBridgeCache/CLI/AIBridgeCLI.exe" <command> <action> [options]
 ```
 
 ### Global Options
@@ -112,13 +112,14 @@ When invoking from PowerShell, use the `&` call operator:
 |--------|-------------|
 | `--timeout <ms>` | Timeout in milliseconds (default: 5000) |
 | `--no-wait` | Don't wait for result, return command ID immediately |
-| `--raw` | Output raw JSON (single line, for AI parsing) |
+| `--raw` | Output compact raw JSON (default) |
+| `--pretty` | Output human-readable formatted text |
 | `--quiet` | Quiet mode, minimal output |
 | `--json <json>` | Pass complex parameters as JSON string |
 | `--stdin` | Read parameters from stdin (JSON format) |
 | `--help` | Show help |
 
-**AI Usage:** Always add `--raw` for JSON output, prefer `asset search` / `asset find --format paths` for canonical Unity paths, use `asset get_path` only when starting from a GUID, and read file contents with the host AI's native file-read tool before falling back to `asset read_text`.
+**AI Usage:** AIBridgeCLI outputs compact JSON by default, which is preferred for AI parsing. Use `--pretty` only when you want human-readable output. Prefer `asset search` / `asset find --format paths` for canonical Unity paths, use `asset get_path` only when starting from a GUID, and read file contents with the host AI's native file-read tool before falling back to `asset read_text`.
 
 All Windows examples below assume you run them from the Unity project root.
 
@@ -134,8 +135,8 @@ All Windows examples below assume you run them from the Unity project root.
 # Bring Unity Editor window to foreground
 ./AIBridgeCache/CLI/AIBridgeCLI.exe focus
 
-# With raw JSON output
-./AIBridgeCache/CLI/AIBridgeCLI.exe focus --raw
+# Default JSON output
+./AIBridgeCache/CLI/AIBridgeCLI.exe focus
 # Output: {"Success":true,"ProcessId":1234,"WindowTitle":"MyProject - Unity 6000.0.51f1","Error":null}
 ```
 
@@ -184,20 +185,20 @@ All Windows examples below assume you run them from the Unity project root.
 
 ```bash
 # Recommended: Unity internal compilation (requires Unity Editor running)
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
 
 # Fallback: External dotnet build (when Unity is not running)
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
 ```
 
 **Workflow for AI after modifying code:**
 
 ```bash
 # Step 1: Try Unity compile first (recommended)
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
 
 # If timeout (Unity not running), fallback to dotnet
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
 
 # Output (success): {"success":true,"status":"success","duration":5.2,"errorCount":0,"warningCount":3,...}
 # Output (failed):  {"success":false,"status":"failed","errorCount":3,"errors":[{"file":"...","line":10,"code":"CS0103","message":"..."}],...}
@@ -221,6 +222,7 @@ All Windows examples below assume you run them from the Unity project root.
 |-----------|-------------|---------|
 | `--timeout` | Total compilation timeout in ms | `120000` |
 | `--poll-interval` | Status polling interval in ms | `500` |
+| `--transport-timeout` | Single command round-trip timeout in ms | `min(30000, timeout)` |
 
 **Dotnet compile parameters (fallback):**
 
@@ -236,6 +238,8 @@ All Windows examples below assume you run them from the Unity project root.
 **NOTE**:
 
 - `compile unity` requires Unity Editor to be running, automatically polls for completion
+- If Unity is already compiling or temporarily busy, `compile unity` will attach to the current compilation and keep polling until a final result or the outer timeout is reached
+- `--timeout` controls the full compile wait window, while `--transport-timeout` controls each CLI↔Unity communication attempt
 - `compile dotnet` runs independently without Unity, has intelligent error filtering
 - Use `compile start` and `compile status` for low-level manual compilation control
 
@@ -392,16 +396,16 @@ All Windows examples below assume you run them from the Unity project root.
 
 ```bash
 # Search Assets (recommended for canonical Unity paths)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths --raw    # Search scripts
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --format paths --raw        # Search prefabs
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode all --keyword "Config" --format paths --raw       # Search all assets
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --format paths --raw       # Custom filter
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths    # Search scripts
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --format paths        # Search prefabs
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode all --keyword "Config" --format paths       # Search all assets
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --format paths       # Custom filter
 
 # Preset modes: all, prefab, scene, script, texture, material, audio, animation, shader, font, model, so
 
 # Find Assets (precise control)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths --raw
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Texture2D" --format paths --searchInFolders "Assets/Textures" --maxResults 50 --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Texture2D" --format paths --searchInFolders "Assets/Textures" --maxResults 50
 
 # Import / Refresh
 ./AIBridgeCache/CLI/AIBridgeCLI.exe asset import --assetPath "Assets/Textures/icon.png"
@@ -412,9 +416,9 @@ All Windows examples below assume you run them from the Unity project root.
 ./AIBridgeCache/CLI/AIBridgeCLI.exe asset load --assetPath "Assets/Prefabs/Player.prefab"
 
 # Fallback: read text only when native file reads are unavailable
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Configs/GameConfig.asset" --startLine 1 --maxLines 80 --raw
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scenes/Main.unity" --startLine 1 --maxLines 200 --maxChars 12000 --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Configs/GameConfig.asset" --startLine 1 --maxLines 80
+./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scenes/Main.unity" --startLine 1 --maxLines 200 --maxChars 12000
 ```
 
 **AI priority note:** For Unity-internal file discovery, use `asset search` / `asset find` with `format=paths` before generic repository search. Use `asset get_path` only when starting from a GUID, and `asset load` only when metadata confirmation is needed. Once the path is known, prefer your host AI's native file-read tool for contents. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed.
@@ -445,7 +449,7 @@ All Windows examples below assume you run them from the Unity project root.
 
 ```bash
 # Capture Game view screenshot (JPG format)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
 ```
 
 **Response:**
@@ -458,13 +462,13 @@ All Windows examples below assume you run them from the Unity project root.
 
 ```bash
 # Record GIF (required: frameCount)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 50 --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 50
 
 # With custom parameters
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --scale 0.5 --colorCount 128 --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --scale 0.5 --colorCount 128
 
 # With delayed start (useful for manual capture timing)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --startDelay 0.5 --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --startDelay 0.5
 ```
 
 **Parameters:**
@@ -508,7 +512,7 @@ Execute multiple commands in one CLI call (more efficient than multiple calls).
 
 ```bash
 # Commands separated by &
-./AIBridgeCache/CLI/AIBridgeCLI.exe multi --cmd 'editor log --message Step1&gameobject create --name Cube --primitiveType Cube' --raw
+./AIBridgeCache/CLI/AIBridgeCLI.exe multi --cmd 'editor log --message Step1&gameobject create --name Cube --primitiveType Cube'
 ```
 
 | Option | Description |

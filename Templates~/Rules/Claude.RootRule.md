@@ -8,6 +8,8 @@ target: root-rule
 
 Use `{{CLI_PATH}}` to interact with Unity Editor through AIBridge.
 
+AIBridgeCLI outputs raw JSON by default for AI consumption. Use `--pretty` only when human-readable output is needed.
+
 **Skill**: `aibridge`
 
 **When to Use**:
@@ -30,15 +32,15 @@ Use `{{CLI_PATH}}` to interact with Unity Editor through AIBridge.
 {{CLI_PATH}}
 
 # Common Commands
-{{CLI_PATH}} compile unity --raw
-{{CLI_PATH}} get_logs --logType Error --raw
-{{CLI_PATH}} asset search --mode script --keyword "Player" --format paths --raw
-{{CLI_PATH}} asset get_path --guid "abc123..." --raw
-{{CLI_PATH}} gameobject create --name "Cube" --primitiveType Cube --raw
-{{CLI_PATH}} transform set_position --path "Player" --x 0 --y 1 --z 0 --raw
+{{CLI_PATH}} compile unity
+{{CLI_PATH}} get_logs --logType Error
+{{CLI_PATH}} asset search --mode script --keyword "Player" --format paths
+{{CLI_PATH}} asset get_path --guid "abc123..."
+{{CLI_PATH}} gameobject create --name "Cube" --primitiveType Cube
+{{CLI_PATH}} transform set_position --path "Player" --x 0 --y 1 --z 0
 
 # Fallback only
-{{CLI_PATH}} asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120 --raw
+{{CLI_PATH}} asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120
 ```
 
 **Skill Documentation**: [AIBridge Skill]({{SKILL_DOC_PATH}})
