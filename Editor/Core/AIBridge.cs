@@ -60,10 +60,14 @@ namespace AIBridge.Editor
             // Initialize components
             CommandRegistry.Initialize();
             _watcher = new CommandWatcher(BridgeDirectory);
+            EditorInstanceTracker.Initialize(BridgeDirectory);
 
             // Subscribe to editor update
             EditorApplication.update -= OnEditorUpdate;
             EditorApplication.update += OnEditorUpdate;
+
+            EditorApplication.quitting -= OnEditorQuitting;
+            EditorApplication.quitting += OnEditorQuitting;
 
             // Handle play mode changes
             EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
@@ -78,6 +82,8 @@ namespace AIBridge.Editor
         /// </summary>
         private static void OnEditorUpdate()
         {
+            EditorInstanceTracker.UpdateHeartbeat();
+
             if (!_enabled)
             {
                 return;
@@ -125,6 +131,11 @@ namespace AIBridge.Editor
                     // Back to edit mode - reinitialize if needed
                     break;
             }
+        }
+
+        private static void OnEditorQuitting()
+        {
+            EditorInstanceTracker.Cleanup();
         }
 
         /// <summary>

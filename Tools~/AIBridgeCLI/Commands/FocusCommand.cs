@@ -42,34 +42,12 @@ namespace AIBridgeCLI.Commands
         {
             try
             {
-                var unityProcesses = Process.GetProcessesByName("Unity");
-
-                if (unityProcesses.Length == 0)
+                if (!UnityEditorInstanceResolver.TryResolve(out var targetProcess, out var resolveError))
                 {
                     return new FocusResult
                     {
                         Success = false,
-                        Error = "Unity Editor is not running."
-                    };
-                }
-
-                // Find the Unity process with a main window
-                Process targetProcess = null;
-                foreach (var process in unityProcesses)
-                {
-                    if (process.MainWindowHandle != IntPtr.Zero)
-                    {
-                        targetProcess = process;
-                        break;
-                    }
-                }
-
-                if (targetProcess == null)
-                {
-                    return new FocusResult
-                    {
-                        Success = false,
-                        Error = "Unity Editor window not found."
+                        Error = resolveError
                     };
                 }
 
