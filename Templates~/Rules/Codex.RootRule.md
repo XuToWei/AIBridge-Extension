@@ -12,6 +12,7 @@ For Unity-project lookup, prefer AIBridge over generic filesystem search wheneve
 
 - AIBridgeCLI outputs raw JSON by default; use `--pretty` only when human-readable output is needed
 - Use AIBridge for compile checks, console log inspection, scene hierarchy changes, GameObject updates, Transform edits, and asset queries
+- Use `compile unity` as the default compile command for Unity projects; use `compile dotnet` only for a separate solution-build validation, not as a fallback for Unity compile failures
 - For Unity files/assets/resources/scripts/configs, use `asset search` / `asset find` with `format=paths` first because Unity's AssetDatabase index is faster and more reliable on large projects while returning only the canonical asset paths AI usually needs
 - Use `asset get_path` only when starting from a GUID and `asset load` only when metadata confirmation helps
 - After locating a path, prefer the host AI's native file-read tool for text-based Unity assets

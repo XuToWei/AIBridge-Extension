@@ -18,6 +18,10 @@ AIBridgeCLI outputs raw JSON by default for AI consumption. Use `--pretty` only 
 - Create or modify GameObjects, Components, Scenes, and Prefabs
 - Search assets and capture screenshots or GIFs from Play Mode
 
+**Compile Guidance**:
+- Use `compile unity` as the default compile command for Unity projects
+- Use `compile dotnet` only for a separate solution-build validation, not as a fallback for Unity compile failures
+
 **Search Priority**:
 - For Unity project files/assets/resources/scripts/configs, prefer AIBridge over generic filesystem search
 - Use `asset search` / `asset find` with `format=paths` first to resolve canonical asset paths via Unity's AssetDatabase index with minimal response payload

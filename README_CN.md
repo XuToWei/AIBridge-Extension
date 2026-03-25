@@ -70,9 +70,50 @@ UnityMCP 更偏向 AI 客户端和 Unity Editor 之间的实时 MCP 连接；AIB
 - Unity 2019.4 或更高版本
 - .NET 6.0 Runtime，用于随包提供的 CLI 工具
 
-## CLI 输出模式
+## CLI 命令速览
 
-随包提供的 AIBridgeCLI 面向 AI 与自动化工作流优化，命令输出默认是便于机器解析的紧凑 JSON；如果需要更适合人工阅读的文本输出，可以显式使用 `--pretty`。
+随包提供的 AIBridgeCLI 把 AIBridge 的主要工作流暴露成可直接调用的命令。命令默认返回紧凑 JSON，因此很适合接入 AI 与自动化流程。
+
+- **先定位正确的 Unity 资源或工程内文件**，通过 Unity 的 AssetDatabase 获取规范路径
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset get_path --guid "abc123..."
+  ```
+- **查看 Prefab 的元信息和层级结构**，在修改 Prefab 资源或实例前先确认现状
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_info --prefabPath "Assets/Prefabs/Player.prefab"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+  ```
+- **查看场景层级和当前编辑器上下文**，让 AI 在修改前先理解现有状态
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy --depth 3 --includeInactive false
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe selection get --includeComponents true
+  ```
+- **查看组件和序列化属性**，避免靠猜测判断 GameObject 上有什么内容
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_components --path "Player"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_properties --path "Player" --componentName "Transform"
+  ```
+- **创建或修改场景对象**，把常见编辑器操作变成可自动化的命令
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "Player" --x 0 --y 1 --z 0
+  ```
+- **触发 Unity 侧编译并做解决方案校验**，用于脚本改动后的验证流程
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
+  ```
+- **读取 Unity Console 日志**，让 AI 能基于真实报错和警告继续推进任务
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Error
+  ```
+- **截图或录制 GIF 做视觉验证**，适合 Play Mode 下的结果确认
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 50
+  ```
 
 ## 许可证
 

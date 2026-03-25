@@ -70,9 +70,50 @@ You can also clone or download this repository and place it under your project's
 - Unity 2019.4 or later
 - .NET 6.0 Runtime for the bundled CLI tools
 
-## CLI output mode
+## CLI command quick reference
 
-The bundled AIBridgeCLI is optimized for AI and automation workflows. Command output defaults to compact JSON for machine parsing, and `--pretty` is available when human-readable text is needed.
+The bundled AIBridgeCLI is designed to expose the main AIBridge workflows as direct commands. Commands return compact JSON by default, which makes them easy to use in AI and automation pipelines.
+
+- **Locate the correct Unity asset or project file first** through Unity's AssetDatabase
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe asset get_path --guid "abc123..."
+  ```
+- **Inspect prefab metadata and hierarchy** before changing a prefab instance or asset
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_info --prefabPath "Assets/Prefabs/Player.prefab"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
+  ```
+- **Inspect scene hierarchy and current editor context** so AI can understand existing state before editing
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy --depth 3 --includeInactive false
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe selection get --includeComponents true
+  ```
+- **Inspect components and serialized properties** instead of guessing what a GameObject contains
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_components --path "Player"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_properties --path "Player" --componentName "Transform"
+  ```
+- **Create or modify scene objects** without turning the task into manual editor work
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "Player" --x 0 --y 1 --z 0
+  ```
+- **Trigger Unity-side compilation** and verify script compile results
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
+  ```
+- **Inspect Unity console output** so AI-driven tasks can react to real errors and warnings
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Error
+  ```
+- **Capture screenshots or GIFs for visual verification** during Play Mode workflows
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 50
+  ```
 
 ## License
 
