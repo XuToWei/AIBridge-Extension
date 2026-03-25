@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,9 +11,18 @@ namespace AIBridge.Editor
     /// </summary>
     public class AIBridgeSettingsWindow : EditorWindow
     {
+        private sealed class AssistantIntegrationSelectionState
+        {
+            public AssistantIntegrationTarget Target { get; set; }
+            public bool IsDetected { get; set; }
+            public string Detail { get; set; }
+            public bool IsSelected { get; set; }
+        }
+
         private Vector2 _scrollPosition;
         private bool _bridgeEnabled;
         private bool _debugLogging;
+        private List<AssistantIntegrationSelectionState> _assistantIntegrationSelections;
 
         // GIF Settings
         private int _gifFrameCount;
@@ -32,6 +43,7 @@ namespace AIBridge.Editor
         private void OnEnable()
         {
             LoadSettings();
+            LoadAssistantIntegrationSelections();
         }
 
         private void LoadSettings()
@@ -60,6 +72,9 @@ namespace AIBridge.Editor
             EditorGUILayout.Space(10);
 
             DrawDirectoryInfo();
+            EditorGUILayout.Space(10);
+
+            DrawAssistantIntegrationSettings();
             EditorGUILayout.Space(10);
 
             DrawActions();
@@ -190,6 +205,129 @@ namespace AIBridge.Editor
                 "F12 - Capture Screenshot (Play mode only)\n" +
                 "F11 - Start/Stop GIF Recording (Play mode only)",
                 MessageType.None);
+        }
+
+        private void DrawAssistantIntegrationSettings()
+        {
+            EditorGUILayout.LabelField("Skill Installation", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Select which supported AI tools should receive AIBridge skill installation. Detected tools are selected by default on first use.",
+                MessageType.Info);
+
+            if (_assistantIntegrationSelections == null)
+            {
+                LoadAssistantIntegrationSelections();
+            }
+
+            foreach (var selection in _assistantIntegrationSelections)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+
+                EditorGUI.BeginChangeCheck();
+                var selected = EditorGUILayout.ToggleLeft(selection.Target.DisplayName, selection.IsSelected);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    selection.IsSelected = selected;
+                    AssistantIntegrationSelectionSettings.SetSelected(selection.Target.Id, selected);
+                }
+
+                var status = selection.IsDetected ? "Detected" : "Not detected";
+                EditorGUILayout.LabelField(status + ": " + selection.Detail, EditorStyles.miniLabel);
+
+                EditorGUILayout.EndVertical();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+
+            if (GUILayout.Button("Select Detected"))
+            {
+                SelectDetectedTools();
+            }
+
+            if (GUILayout.Button("Select All"))
+            {
+                SelectAllTools();
+            }
+
+            if (GUILayout.Button("Clear"))
+            {
+                ClearToolSelection();
+            }
+
+            EditorGUILayout.EndHorizontal();
+
+            var selectedCount = _assistantIntegrationSelections.Count(selection => selection.IsSelected);
+            EditorGUILayout.LabelField($"{selectedCount} tool(s) selected", EditorStyles.miniLabel);
+
+            EditorGUI.BeginDisabledGroup(selectedCount == 0);
+            if (GUILayout.Button("Install Selected Integrations", GUILayout.Height(30)))
+            {
+                InstallSelectedTools();
+            }
+            EditorGUI.EndDisabledGroup();
+
+            if (selectedCount == 0)
+            {
+                EditorGUILayout.HelpBox("Select at least one tool to install AIBridge integrations.", MessageType.Warning);
+            }
+        }
+
+        private void LoadAssistantIntegrationSelections()
+        {
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            var targets = AssistantIntegrationRegistry.GetTargets();
+            var selections = AssistantIntegrationSelectionSettings.LoadSelections(projectRoot, targets);
+
+            _assistantIntegrationSelections = new List<AssistantIntegrationSelectionState>(targets.Count);
+            foreach (var target in targets)
+            {
+                var detection = AssistantIntegrationDetector.Detect(projectRoot, target);
+                _assistantIntegrationSelections.Add(new AssistantIntegrationSelectionState
+                {
+                    Target = target,
+                    IsDetected = detection.IsDetected,
+                    Detail = detection.Detail,
+                    IsSelected = selections.TryGetValue(target.Id, out var isSelected) && isSelected
+                });
+            }
+        }
+
+        private void SelectDetectedTools()
+        {
+            foreach (var selection in _assistantIntegrationSelections)
+            {
+                selection.IsSelected = selection.IsDetected;
+                AssistantIntegrationSelectionSettings.SetSelected(selection.Target.Id, selection.IsSelected);
+            }
+        }
+
+        private void SelectAllTools()
+        {
+            foreach (var selection in _assistantIntegrationSelections)
+            {
+                selection.IsSelected = true;
+                AssistantIntegrationSelectionSettings.SetSelected(selection.Target.Id, true);
+            }
+        }
+
+        private void ClearToolSelection()
+        {
+            foreach (var selection in _assistantIntegrationSelections)
+            {
+                selection.IsSelected = false;
+                AssistantIntegrationSelectionSettings.SetSelected(selection.Target.Id, false);
+            }
+        }
+
+        private void InstallSelectedTools()
+        {
+            var selectedTargetIds = _assistantIntegrationSelections
+                .Where(selection => selection.IsSelected)
+                .Select(selection => selection.Target.Id)
+                .ToArray();
+
+            SkillInstaller.ManualInstallSelected(selectedTargetIds);
+            LoadAssistantIntegrationSelections();
         }
 
         private void ClearScreenshotCache()

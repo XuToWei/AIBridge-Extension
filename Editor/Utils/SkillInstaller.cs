@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -64,8 +65,14 @@ namespace AIBridge.Editor
             try
             {
                 var projectRoot = GetProjectRoot();
+                var targets = GetSelectedTargets(projectRoot);
+                if (targets.Count == 0)
+                {
+                    return;
+                }
+
                 CopyCliToCacheIfNeeded(projectRoot);
-                var results = InstallAssistantIntegrations(projectRoot);
+                var results = InstallAssistantIntegrations(projectRoot, targets);
                 LogResults(results);
             }
             catch (Exception ex)
@@ -273,9 +280,14 @@ namespace AIBridge.Editor
 
         private static List<AssistantIntegrationResult> InstallAssistantIntegrations(string projectRoot)
         {
+            return InstallAssistantIntegrations(projectRoot, AssistantIntegrationRegistry.GetTargets());
+        }
+
+        private static List<AssistantIntegrationResult> InstallAssistantIntegrations(string projectRoot, IEnumerable<AssistantIntegrationTarget> targets)
+        {
             var results = new List<AssistantIntegrationResult>();
             var sourceSkillPath = GetSourceSkillPath();
-            foreach (var target in AssistantIntegrationRegistry.GetTargets())
+            foreach (var target in targets)
             {
                 var result = new AssistantIntegrationResult
                 {
@@ -344,16 +356,34 @@ namespace AIBridge.Editor
         private static Dictionary<string, string> BuildTemplateTokens(string projectRoot, AssistantIntegrationTarget target)
         {
             var cliExeName = GetCliExecutableName();
+            var skillDocPath = target.SupportsSkillDirectory
+                ? "/" + target.GetSkillFileRelativePath()
+                : "/Packages/" + PACKAGE_NAME + "/Skill~/" + SKILL_FILE_NAME;
             return new Dictionary<string, string>
             {
                 { "CLI_PATH", "./" + CLI_CACHE_FOLDER + "/" + cliExeName },
                 { "CLI_EXE_NAME", cliExeName },
                 { "CLI_CACHE_DIR", CLI_CACHE_FOLDER },
-                { "SKILL_DOC_PATH", target.SupportsSkillDirectory ? "/" + target.GetSkillFileRelativePath() : "/.claude/skills/aibridge/SKILL.md" },
+                { "SKILL_DOC_PATH", skillDocPath },
                 { "PROJECT_ROOT_RULE_FILE", target.RootRuleFileName },
                 { "ASSISTANT_NAME", target.DisplayName },
                 { "PROJECT_ROOT", projectRoot }
             };
+        }
+
+        private static List<AssistantIntegrationTarget> GetSelectedTargets(string projectRoot)
+        {
+            var allTargets = AssistantIntegrationRegistry.GetTargets();
+            var selections = AssistantIntegrationSelectionSettings.LoadSelections(projectRoot, allTargets);
+            return allTargets.Where(target => selections.TryGetValue(target.Id, out var selected) && selected).ToList();
+        }
+
+        private static List<AssistantIntegrationTarget> GetTargetsByIds(IEnumerable<string> targetIds)
+        {
+            var selectedIds = new HashSet<string>(targetIds ?? Enumerable.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+            return AssistantIntegrationRegistry.GetTargets()
+                .Where(target => selectedIds.Contains(target.Id))
+                .ToList();
         }
 
         private static void LogResults(IEnumerable<AssistantIntegrationResult> results)
@@ -409,8 +439,44 @@ namespace AIBridge.Editor
             try
             {
                 var projectRoot = GetProjectRoot();
+                var targets = GetSelectedTargets(projectRoot);
+                if (targets.Count == 0)
+                {
+                    EditorUtility.DisplayDialog("AIBridge", "No assistant tools selected for installation. Open AIBridge/Settings and choose at least one tool.", "OK");
+                    return;
+                }
+
                 CopyCliToCacheIfNeeded(projectRoot);
-                var results = InstallAssistantIntegrations(projectRoot);
+                var results = InstallAssistantIntegrations(projectRoot, targets);
+                LogResults(results);
+                EditorUtility.DisplayDialog("AIBridge", BuildManualInstallSummary(results), "OK");
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog("AIBridge", $"Failed to install: {ex.Message}", "OK");
+            }
+        }
+
+        public static void ManualInstallSelected(IEnumerable<string> targetIds)
+        {
+            try
+            {
+                var projectRoot = GetProjectRoot();
+                var targets = GetTargetsByIds(targetIds);
+                if (targets.Count == 0)
+                {
+                    EditorUtility.DisplayDialog("AIBridge", "No assistant tools selected for installation.", "OK");
+                    return;
+                }
+
+                var selectedIds = new HashSet<string>(targets.Select(target => target.Id), StringComparer.OrdinalIgnoreCase);
+                foreach (var target in AssistantIntegrationRegistry.GetTargets())
+                {
+                    AssistantIntegrationSelectionSettings.SetSelected(target.Id, selectedIds.Contains(target.Id));
+                }
+
+                CopyCliToCacheIfNeeded(projectRoot);
+                var results = InstallAssistantIntegrations(projectRoot, targets);
                 LogResults(results);
                 EditorUtility.DisplayDialog("AIBridge", BuildManualInstallSummary(results), "OK");
             }

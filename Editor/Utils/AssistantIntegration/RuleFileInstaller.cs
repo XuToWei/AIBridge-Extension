@@ -25,6 +25,7 @@ namespace AIBridge.Editor
 
             if (!File.Exists(ruleFilePath))
             {
+                EnsureParentDirectory(ruleFilePath);
                 switch (target.MissingRootRuleStrategy)
                 {
                     case MissingRootRuleStrategy.Skip:
@@ -92,6 +93,15 @@ namespace AIBridge.Editor
             }
 
             return content.TrimEnd() + "\n\n" + block + "\n";
+        }
+
+        private static void EnsureParentDirectory(string filePath)
+        {
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
         }
 
         private static string BuildMinimalFile(string renderedBlock)
