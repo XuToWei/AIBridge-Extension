@@ -21,6 +21,6 @@ namespace AIBridgeCLI.Core
         public bool success { get; set; }
         public string error { get; set; }
         public object data { get; set; }
-        public long executionTime { get; set; }
+        public long? executionTime { get; set; }
     }
 }

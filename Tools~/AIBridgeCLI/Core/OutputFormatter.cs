@@ -30,6 +30,11 @@ namespace AIBridgeCLI.Core
     /// </summary>
     public static class OutputFormatter
     {
+        private static readonly JsonSerializerSettings CompactJsonSettings = new JsonSerializerSettings
+        {
+            NullValueHandling = NullValueHandling.Ignore
+        };
+
         /// <summary>
         /// Format and print a command result
         /// </summary>
@@ -64,7 +69,7 @@ namespace AIBridgeCLI.Core
                 };
             }
 
-            var json = JsonConvert.SerializeObject(output, Formatting.None);
+            var json = JsonConvert.SerializeObject(output, Formatting.None, CompactJsonSettings);
             Console.WriteLine(json);
         }
 
@@ -91,7 +96,8 @@ namespace AIBridgeCLI.Core
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.Write("✓ ");
                 Console.ResetColor();
-                Console.WriteLine($"Command executed successfully ({result.executionTime}ms)");
+                var timingSuffix = result.executionTime.HasValue ? $" ({result.executionTime.Value}ms)" : string.Empty;
+                Console.WriteLine($"Command executed successfully{timingSuffix}");
 
                 if (result.data != null)
                 {
@@ -103,7 +109,8 @@ namespace AIBridgeCLI.Core
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Write("✗ ");
                 Console.ResetColor();
-                Console.WriteLine($"Command failed ({result.executionTime}ms)");
+                var timingSuffix = result.executionTime.HasValue ? $" ({result.executionTime.Value}ms)" : string.Empty;
+                Console.WriteLine($"Command failed{timingSuffix}");
 
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"  Error: {result.error}");
