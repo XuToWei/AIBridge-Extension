@@ -33,12 +33,12 @@ namespace AIBridgeCLI.Core
         /// <summary>
         /// Format and print a command result
         /// </summary>
-        public static void PrintResult(CommandResult result, OutputMode mode)
+        public static void PrintResult(CommandResult result, OutputMode mode, bool includeIdInRaw = true)
         {
             switch (mode)
             {
                 case OutputMode.Raw:
-                    PrintRaw(result);
+                    PrintRaw(result, includeIdInRaw);
                     break;
                 case OutputMode.Quiet:
                     PrintQuiet(result);
@@ -50,9 +50,21 @@ namespace AIBridgeCLI.Core
             }
         }
 
-        private static void PrintRaw(CommandResult result)
+        private static void PrintRaw(CommandResult result, bool includeId)
         {
-            var json = JsonConvert.SerializeObject(result, Formatting.None);
+            object output = result;
+            if (!includeId)
+            {
+                output = new
+                {
+                    success = result.success,
+                    error = result.error,
+                    data = result.data,
+                    executionTime = result.executionTime
+                };
+            }
+
+            var json = JsonConvert.SerializeObject(output, Formatting.None);
             Console.WriteLine(json);
         }
 

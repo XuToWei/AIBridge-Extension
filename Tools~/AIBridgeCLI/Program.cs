@@ -181,7 +181,7 @@ namespace AIBridgeCLI
             }
 
             var result = sender.SendCommand(request);
-            OutputFormatter.PrintResult(result, outputMode);
+            OutputFormatter.PrintResult(result, outputMode, includeIdInRaw: false);
 
             return result.success ? 0 : 1;
         }
@@ -363,7 +363,7 @@ namespace AIBridgeCLI
             }
 
             var result = sender.SendCommand(request);
-            OutputFormatter.PrintResult(result, outputMode);
+            OutputFormatter.PrintResult(result, outputMode, includeIdInRaw: false);
 
             return result.success ? 0 : 1;
         }
