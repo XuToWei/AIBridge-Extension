@@ -1,210 +1,85 @@
 ---
-description: "AI Bridge Unity integration - File-based communication framework for AI to control Unity Editor. Send commands via JSON files, manipulate GameObjects, Transforms, Components, Scenes, Prefabs, and more. Supports multi-command execution and runtime extension."
+name: aibridge
+description: "Unity CLI Tool. Execute compile, asset search, gameobject manipulation, transform operations, component inspection, scene/prefab management, screenshot capture, and GIF recording. Supports multi-command execution and runtime extension."
+commands: [compile, asset, gameobject, transform, inspector, selection, scene, prefab, screenshot, get_logs, focus, batch, multi, menu_item, editor]
+capabilities: [asset-lookup, scene-editing, build-automation, visual-verification, component-inspection, hierarchy-manipulation, prefab-management, console-monitoring, editor-control]
+triggers: [unity, compile, gameobject, transform, component, scene, prefab, screenshot, gif, console, log, asset, hierarchy, inspector, selection, menu, editor, focus, batch]
 ---
 
 # AI Bridge Unity Skill
 
-## When to Use This Skill
+## AI Operating Rules
 
-Activate this skill when you need to:
+**Compile Priority:**
+- Use `compile unity` (default) - requires Unity Editor running
+- Use `compile dotnet` (optional) - separate solution-build validation only, NOT a fallback
 
-- Manipulate Unity Editor (create/modify/delete GameObjects)
-- Get or set Transform properties (position/rotation/scale)
-- Manage scene hierarchy or load/save scenes
-- Instantiate or modify prefabs
-- Read/write component properties
-- Control editor state (undo/redo/compile/play mode)
-- Query Unity console logs or selection state
-- Output logs to Unity console
-- **Bring Unity Editor window to foreground** (triggers auto-refresh/compile)
-- **Capture screenshots or record animated GIFs** (requires Play Mode)
-- **Execute multiple commands efficiently** (use `multi` command)
+**Asset Lookup Priority:**
+1. `asset search/find --format paths` (Unity AssetDatabase index - fastest)
+2. `asset get_path` (only when starting from GUID)
+3. `asset load` (only for metadata confirmation)
+4. Host AI native file-read tool (for file contents)
+5. `asset read_text` (fallback when native reads unavailable)
+6. Generic grep/filesystem search (last resort)
 
-## Search & Query Priority for Unity Projects
-
-When you need to locate files or inspect Unity-managed assets **inside a Unity project**, prefer AIBridge before generic repo search tools.
-
-**Use AIBridge first for:**
-
-- Asset/resource lookup in large Unity projects
-- Finding scripts, prefabs, scenes, materials, textures, ScriptableObjects
-- Resolving the canonical Unity asset path before opening a file
-- Checking Unity-side asset metadata before opening a file with your host AI's native read tool
-
-**Recommended workflow:**
-
-1. Use `asset search` or `asset find` with `format=paths` to locate candidate files through Unity's AssetDatabase index with minimal response payload
-2. Use `asset get_path` only when you only have a GUID
-3. Use `asset load` only when you want to confirm asset metadata before opening it
-4. Once the canonical path is known, use your host AI's native file-read tool to inspect file contents
-5. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed
-6. Only fall back to generic `grep` / filesystem search when AIBridge cannot cover the target
-
-**Why:** Unity's AssetDatabase index is usually faster and more accurate than generic file search for large Unity projects, especially for assets that AI may not find reliably with repo search alone.
+**Special Constraints:**
+- `focus` - Windows-only, CLI-only, triggers Unity refresh/compile
+- `screenshot` - Requires Play Mode
+- `multi` - Preferred for batch operations
 
 ---
 
-## AIBridgeCLI - Recommended Method
+## Invocation
 
-**IMPORTANT**: On Windows, run `./AIBridgeCache/CLI/AIBridgeCLI.exe` from the Unity project root when sending commands. This avoids PATH resolution issues, preserves UTF-8 output, and provides a cleaner interface.
+**CLI Path:** `./AIBridgeCache/CLI/AIBridgeCLI.exe` (run from Unity project root)
 
-### CLI Location
+**Alias (used in examples below):** `$CLI`
 
-```
-./AIBridgeCache/CLI/AIBridgeCLI.exe
-```
+**OS Syntax:**
+- Windows: `./AIBridgeCache/CLI/AIBridgeCLI.exe <command> <action> [options]`
+- macOS/Linux: `dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll <command> <action> [options]`
+- PowerShell: `& "./AIBridgeCache/CLI/AIBridgeCLI.exe" <command> <action> [options]`
 
-> **Note**: The CLI is automatically copied to `AIBridgeCache/CLI/` when the package is installed. Run commands from the Unity project root so `./AIBridgeCache/CLI/AIBridgeCLI.exe` resolves consistently regardless of how the package was installed (local, git, or registry).
+**Global Options:**
+- `--timeout <ms>` - Timeout (default: 5000)
+- `--raw` / `--pretty` - JSON output (default: raw)
+- `--json <json>` / `--stdin` - Complex parameters
+- `--help` - Show help
 
-### Cross-Platform Support
-
-**Windows:**
-```bash
-./AIBridgeCache/CLI/AIBridgeCLI.exe <command> <action> [options]
-```
-
-**macOS / Linux:**
-```bash
-# Requires .NET Runtime installed
-dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll <command> <action> [options]
-
-# Example
-dotnet ./AIBridgeCache/CLI/AIBridgeCLI.dll get_logs --logType Error
-```
-
-> **Note**: The CLI is built as a .NET assembly, so it can run on macOS/Linux via `dotnet` command from the Unity project root. Install .NET Runtime from https://dotnet.microsoft.com/download if not already installed.
-
-### Cache Directory
-
-Commands and results are stored in `AIBridgeCache/` under the Unity project root:
-
-```
-{Unity Project Root}/
-├── AIBridgeCache/
-│   ├── commands/      # Command JSON files
-│   ├── results/       # Result JSON files
-│   └── screenshots/   # Screenshots and GIFs
-```
-
-### Basic Usage
-
-```bash
-# Format
-./AIBridgeCache/CLI/AIBridgeCLI.exe <command-type> <action> [options]
-
-# Examples
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Hello World"
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "Player" --x 1 --y 2 --z 3
-```
-
-### PowerShell Execution
-
-When invoking from PowerShell, use the `&` call operator:
-
-```powershell
-& "./AIBridgeCache/CLI/AIBridgeCLI.exe" <command> <action> [options]
-```
-
-### Global Options
-
-| Option | Description |
-|--------|-------------|
-| `--timeout <ms>` | Timeout in milliseconds (default: 5000) |
-| `--no-wait` | Don't wait for result, return command ID immediately |
-| `--raw` | Output compact raw JSON (default) |
-| `--pretty` | Output human-readable formatted text |
-| `--quiet` | Quiet mode, minimal output |
-| `--json <json>` | Pass complex parameters as JSON string |
-| `--stdin` | Read parameters from stdin (JSON format) |
-| `--help` | Show help |
-
-**AI Usage:** AIBridgeCLI outputs compact JSON by default, which is preferred for AI parsing. Use `--pretty` only when you want human-readable output. Prefer `asset search` / `asset find --format paths` for canonical Unity paths, use `asset get_path` only when starting from a GUID, and read file contents with the host AI's native file-read tool before falling back to `asset read_text`.
-
-All Windows examples below assume you run them from the Unity project root.
+**Cache Directory:** `AIBridgeCache/` (commands, results, screenshots)
 
 ---
 
 ## Command Reference
 
-### 0. `focus` - Bring Unity to Foreground (CLI-only)
+### 0. `focus` - Bring Unity to Foreground
 
-**IMPORTANT**: This is a CLI-only command that does NOT require Unity to process it. It uses Windows API to bring the Unity Editor window to the foreground, which triggers automatic asset refresh and code compilation.
+CLI-only, Windows-only. Triggers Unity refresh/compile via Windows API.
 
 ```bash
-# Bring Unity Editor window to foreground
-./AIBridgeCache/CLI/AIBridgeCLI.exe focus
-
-# Default JSON output
-./AIBridgeCache/CLI/AIBridgeCLI.exe focus
+$CLI focus
 # Output: {"Success":true,"ProcessId":1234,"WindowTitle":"MyProject - Unity 6000.0.51f1","Error":null}
 ```
-
-**Use Cases:**
-
-- After modifying code files, use `focus` to trigger Unity's automatic recompilation
-- After adding/modifying assets, use `focus` to trigger AssetDatabase refresh
-- Useful in automation scripts to ensure Unity processes pending changes
-
-**Notes:**
-
-- Works only on Windows (uses Windows API)
-- Does not require Unity to be responsive (direct window manipulation)
-- Returns process ID and window title on success
 
 ### 1. `editor` - Editor Control
 
 ```bash
-# Log to Unity console
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Hello World"
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Warning!" --logType Warning
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor log --message "Error!" --logType Error
-
-# Undo/Redo
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor undo
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor undo --count 3
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor redo
-
-# Compile and Refresh (simple, use `compile` command for full features)
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor compile
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor refresh
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor refresh --forceUpdate true
-
-# Play Mode
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor play
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor stop
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor pause
-
-# Get Editor State
-./AIBridgeCache/CLI/AIBridgeCLI.exe editor get_state
+$CLI editor log --message "Hello" [--logType Warning|Error]
+$CLI editor undo [--count 3]
+$CLI editor redo
+$CLI editor compile  # Simple compile, use `compile` command for full features
+$CLI editor refresh [--forceUpdate true]
+$CLI editor play|stop|pause
+$CLI editor get_state
 ```
 
-### 1.1 `compile` - Compilation Operations (Recommended for AI)
-
-**IMPORTANT for AI**: Use `compile unity` as the default compilation command for Unity projects. Use `compile dotnet` only when you explicitly need a separate solution-build validation. Do not treat `compile dotnet` or `dotnet build` as a fallback when `compile unity` fails.
+### 1.1 `compile` - Compilation Operations
 
 ```bash
-# Default: Unity script compilation (requires Unity Editor running)
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
+$CLI compile unity  # Default (requires Unity Editor)
+$CLI compile dotnet [--solution MyGame.sln]  # Optional validation
 
-# Optional: Separate dotnet solution-build validation
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
-
-# Optional: Explicitly choose a solution when multiple exist
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet --solution MyGame.sln
-```
-
-**Recommended compile checks for AI after modifying code:**
-
-```bash
-# Default compile check
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile unity
-
-# Optional separate solution-build check
-./AIBridgeCache/CLI/AIBridgeCLI.exe compile dotnet
-
-# Output (success): {"success":true,"status":"success","duration":5.2,"errorCount":0,"warningCount":3,...}
-# Output (failed):  {"success":false,"status":"failed","errorCount":3,"errors":[{"file":"...","line":10,"code":"CS0103","message":"..."}],...}
+# Output: {"success":true,"status":"success","duration":5.2,"errorCount":0,"warningCount":3,...}
 ```
 
 **Unity compile response fields:**
@@ -250,279 +125,121 @@ All Windows examples below assume you run them from the Unity project root.
 ### 2. `gameobject` - GameObject Operations
 
 ```bash
-# Create
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "MyCube" --primitiveType Cube
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject create --name "Child" --parentPath "Parent"
-
-# Destroy
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject destroy --path "MyCube"
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject destroy --instanceId 12345
-
-# Find
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject find --name "Player"
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject find --tag "Enemy" --maxResults 10
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject find --withComponent "BoxCollider"
-
-# Set Active
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject set_active --path "Player" --active false
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject set_active --path "Player" --toggle true
-
-# Rename
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject rename --path "OldName" --newName "NewName"
-
-# Duplicate
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject duplicate --path "Original"
-
-# Get Info
-./AIBridgeCache/CLI/AIBridgeCLI.exe gameobject get_info --path "Player"
+$CLI gameobject create --name "Cube" --primitiveType Cube [--parentPath "Parent"]
+$CLI gameobject destroy --path "Cube" [--instanceId 12345]
+$CLI gameobject find --name "Player" [--tag "Enemy"] [--withComponent "BoxCollider"] [--maxResults 10]
+$CLI gameobject set_active --path "Player" --active false [--toggle true]
+$CLI gameobject rename --path "OldName" --newName "NewName"
+$CLI gameobject duplicate --path "Original"
+$CLI gameobject get_info --path "Player"
 ```
 
 ### 3. `transform` - Transform Operations
 
 ```bash
-# Get Transform
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform get --path "Player"
-
-# Set Position
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "Player" --x 0 --y 1 --z 0
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_position --path "Player" --x 0 --y 1 --z 0 --local true
-
-# Set Rotation
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_rotation --path "Player" --x 0 --y 90 --z 0
-
-# Set Scale
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_scale --path "Player" --x 2 --y 2 --z 2
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_scale --path "Player" --uniform 2
-
-# Set Parent
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_parent --path "Child" --parentPath "Parent"
-
-# Look At
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform look_at --path "Player" --targetPath "Enemy"
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform look_at --path "Player" --targetX 0 --targetY 0 --targetZ 10
-
-# Reset
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform reset --path "Player"
-
-# Sibling Index
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_sibling_index --path "Child" --index 0
-./AIBridgeCache/CLI/AIBridgeCLI.exe transform set_sibling_index --path "Child" --first true
+$CLI transform get --path "Player"
+$CLI transform set_position --path "Player" --x 0 --y 1 --z 0 [--local true]
+$CLI transform set_rotation --path "Player" --x 0 --y 90 --z 0
+$CLI transform set_scale --path "Player" --x 2 --y 2 --z 2 [--uniform 2]
+$CLI transform set_parent --path "Child" --parentPath "Parent"
+$CLI transform look_at --path "Player" --targetPath "Enemy" [--targetX 0 --targetY 0 --targetZ 10]
+$CLI transform reset --path "Player"
+$CLI transform set_sibling_index --path "Child" --index 0 [--first true]
 ```
 
 ### 4. `inspector` - Component Operations
 
 ```bash
-# Get Components
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_components --path "Player"
-
-# Get Properties
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector get_properties --path "Player" --componentName "Transform"
-
-# Set Property
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector set_property --path "Player" --componentName "Rigidbody" --propertyName "mass" --value 10
-
-# Add Component
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector add_component --path "Player" --typeName "Rigidbody"
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector add_component --path "Player" --typeName "BoxCollider"
-
-# Remove Component
-./AIBridgeCache/CLI/AIBridgeCLI.exe inspector remove_component --path "Player" --componentName "Rigidbody"
+$CLI inspector get_components --path "Player"
+$CLI inspector get_properties --path "Player" --componentName "Transform"
+$CLI inspector set_property --path "Player" --componentName "Rigidbody" --propertyName "mass" --value 10
+$CLI inspector add_component --path "Player" --typeName "Rigidbody"
+$CLI inspector remove_component --path "Player" --componentName "Rigidbody"
 ```
 
 ### 5. `selection` - Selection Operations
 
 ```bash
-# Get Selection
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection get
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection get --includeComponents true
-
-# Set Selection
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection set --path "Player"
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection set --assetPath "Assets/Prefabs/Player.prefab"
-
-# Clear
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection clear
-
-# Add/Remove
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection add --path "Enemy1"
-./AIBridgeCache/CLI/AIBridgeCLI.exe selection remove --path "Enemy1"
+$CLI selection get [--includeComponents true]
+$CLI selection set --path "Player" [--assetPath "Assets/Prefabs/Player.prefab"]
+$CLI selection clear
+$CLI selection add --path "Enemy1"
+$CLI selection remove --path "Enemy1"
 ```
 
 ### 6. `scene` - Scene Operations
 
 ```bash
-# Load Scene
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene load --scenePath "Assets/Scenes/Main.unity"
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene load --scenePath "Assets/Scenes/UI.unity" --mode additive
-
-# Save Scene
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene save
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene save --saveAs "Assets/Scenes/NewScene.unity"
-
-# Get Hierarchy
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_hierarchy --depth 3 --includeInactive false
-
-# Get Active Scene
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene get_active
-
-# New Scene
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene new
-./AIBridgeCache/CLI/AIBridgeCLI.exe scene new --setup empty
+$CLI scene load --scenePath "Assets/Scenes/Main.unity" [--mode additive]
+$CLI scene save [--saveAs "Assets/Scenes/NewScene.unity"]
+$CLI scene get_hierarchy [--depth 3] [--includeInactive false]
+$CLI scene get_active
+$CLI scene new [--setup empty]
 ```
 
 ### 7. `prefab` - Prefab Operations
 
 ```bash
-# Instantiate
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab instantiate --prefabPath "Assets/Prefabs/Player.prefab"
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab instantiate --prefabPath "Assets/Prefabs/Enemy.prefab" --posX 5 --posY 0 --posZ 0
-
-# Save as Prefab
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab save --gameObjectPath "Player" --savePath "Assets/Prefabs/Player.prefab"
-
-# Unpack
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab unpack --gameObjectPath "Player(Clone)"
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab unpack --gameObjectPath "Player(Clone)" --completely true
-
-# Get Info
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_info --prefabPath "Assets/Prefabs/Player.prefab"
-
-# Get Hierarchy
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab"
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab get_hierarchy --prefabPath "Assets/Prefabs/UI/MainPanel.prefab" --depth 4 --includeInactive false
-
-# Apply Overrides
-./AIBridgeCache/CLI/AIBridgeCLI.exe prefab apply --gameObjectPath "Player(Clone)"
+$CLI prefab instantiate --prefabPath "Assets/Prefabs/Player.prefab" [--posX 5 --posY 0 --posZ 0]
+$CLI prefab save --gameObjectPath "Player" --savePath "Assets/Prefabs/Player.prefab"
+$CLI prefab unpack --gameObjectPath "Player(Clone)" [--completely true]
+$CLI prefab get_info --prefabPath "Assets/Prefabs/Player.prefab"
+$CLI prefab get_hierarchy --prefabPath "Assets/Prefabs/Player.prefab" [--depth 4] [--includeInactive false]
+$CLI prefab apply --gameObjectPath "Player(Clone)"
 ```
 
 ### 8. `asset` - AssetDatabase Operations
 
 ```bash
-# Search Assets (recommended for canonical Unity paths)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode script --keyword "Player" --format paths    # Search scripts
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode prefab --keyword "UI" --format paths        # Search prefabs
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --mode all --keyword "Config" --format paths       # Search all assets
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset search --filter "t:ScriptableObject" --format paths       # Custom filter
+# Search (recommended - Unity AssetDatabase index)
+$CLI asset search --mode script --keyword "Player" --format paths
+$CLI asset search --mode prefab --keyword "UI" --format paths
+$CLI asset search --filter "t:ScriptableObject" --format paths
+# Modes: all, prefab, scene, script, texture, material, audio, animation, shader, font, model, so
 
-# Preset modes: all, prefab, scene, script, texture, material, audio, animation, shader, font, model, so
-
-# Find Assets (precise control)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Prefab" --format paths
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset find --filter "t:Texture2D" --format paths --searchInFolders "Assets/Textures" --maxResults 50
+# Find (precise control)
+$CLI asset find --filter "t:Prefab" --format paths [--searchInFolders "Assets/Textures"] [--maxResults 50]
 
 # Import / Refresh
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset import --assetPath "Assets/Textures/icon.png"
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset refresh
+$CLI asset import --assetPath "Assets/Textures/icon.png"
+$CLI asset refresh
 
-# Get Path from GUID / Load Asset Info (metadata only)
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset get_path --guid "abc123..."
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset load --assetPath "Assets/Prefabs/Player.prefab"
+# Get Path / Load Metadata
+$CLI asset get_path --guid "abc123..."
+$CLI asset load --assetPath "Assets/Prefabs/Player.prefab"
 
-# Fallback: read text only when native file reads are unavailable
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Configs/GameConfig.asset" --startLine 1 --maxLines 80
-./AIBridgeCache/CLI/AIBridgeCLI.exe asset read_text --assetPath "Assets/Scenes/Main.unity" --startLine 1 --maxLines 200 --maxChars 12000
+# Fallback: read text (use host AI native file-read tool first)
+$CLI asset read_text --assetPath "Assets/Scripts/Player.cs" --startLine 1 --maxLines 120
 ```
 
-**AI priority note:** For Unity-internal file discovery, use `asset search` / `asset find` with `format=paths` before generic repository search. Use `asset get_path` only when starting from a GUID, and `asset load` only when metadata confirmation is needed. Once the path is known, prefer your host AI's native file-read tool for contents. Use `asset read_text` only as a fallback when native reads are unavailable or when a Unity-side line window is specifically needed.
-
-`format=full` (default) returns asset objects in `data.assets`. `format=paths` returns Unity asset path strings in `data.assets`, which is usually the most efficient shape for AI-driven lookup.
+**Note:** `format=paths` returns Unity asset paths only (efficient). `format=full` returns asset objects with metadata.
 
 ### 9. `menu_item` - Invoke Menu Item
 
 ```bash
-./AIBridgeCache/CLI/AIBridgeCLI.exe menu_item --menuPath "GameObject/Create Empty"
-./AIBridgeCache/CLI/AIBridgeCLI.exe menu_item --menuPath "Assets/Create/Folder"
+$CLI menu_item --menuPath "GameObject/Create Empty"
+$CLI menu_item --menuPath "Assets/Create/Folder"
 ```
 
 ### 10. `get_logs` - Get Console Logs
 
 ```bash
-./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs
-./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --count 100
-./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Error
-./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Warning --count 20
+$CLI get_logs [--count 100] [--logType Error|Warning]
 ```
 
-### 11. `screenshot` - Screenshot & GIF Recording (Play Mode)
-
-**Requires Play mode.** Files saved to `AIBridgeCache/screenshots/`.
-
-#### Static Screenshot
+### 11. `batch` - Batch Commands
 
 ```bash
-# Capture Game view screenshot (JPG format)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
+$CLI batch execute --commands '[{"type":"editor","params":{"action":"log","message":"Step 1"}}]'
+$CLI batch from_file --file "commands.json"
 ```
 
-**Response:**
-
-```json
-{"success":true,"data":{"action":"game","imagePath":"...screenshots/game_xxx.jpg","width":1920,"height":1080,"filename":"game_xxx.jpg","timestamp":"2025-01-19T12:00:00"}}
-```
-
-#### Animated GIF Recording
+### 12. `multi` - Execute Multiple Commands (Recommended)
 
 ```bash
-# Record GIF (required: frameCount)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 50
-
-# With custom parameters
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --scale 0.5 --colorCount 128
-
-# With delayed start (useful for manual capture timing)
-./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot gif --frameCount 100 --fps 25 --startDelay 0.5
+$CLI multi --cmd 'editor log --message Step1&gameobject create --name Cube --primitiveType Cube'
+$CLI multi --stdin  # Read from stdin (one per line)
 ```
-
-**Parameters:**
-
-| Parameter | Range | Default | Description |
-|-----------|-------|---------|-------------|
-| `--frameCount` | 1-200 | Required | Number of frames to capture |
-| `--fps` | 10-30 | 25 | Frames per second |
-| `--scale` | 0.25-1.0 | 0.5 | Resolution scale factor |
-| `--colorCount` | 64-256 | 128 | GIF palette color count |
-| `--startDelay` | 0-5 seconds | 0 | Delay before capture starts |
-
-**Response:**
-
-```json
-{"success":true,"data":{"action":"gif","gifPath":"...screenshots/gif_xxx.gif","filename":"gif_xxx.gif","frameCount":50,"width":480,"height":270,"duration":2.0,"fileSize":512000,"timestamp":"2025-01-19T12:00:00"}}
-```
-
-**Estimated File Sizes:**
-
-| Frames | Duration | Resolution | Size |
-|--------|----------|------------|------|
-| 25 | 1s | 480x270 | 200KB - 800KB |
-| 50 | 2s | 480x270 | 400KB - 1.5MB |
-| 100 | 4s | 480x270 | 800KB - 3MB |
-| 200 | 8s | 480x270 | 1.5MB - 6MB |
-
-### 12. `batch` - Batch Commands
-
-```bash
-# Execute multiple commands from JSON
-./AIBridgeCache/CLI/AIBridgeCLI.exe batch execute --commands "[{\"type\":\"editor\",\"params\":{\"action\":\"log\",\"message\":\"Step 1\"}},{\"type\":\"editor\",\"params\":{\"action\":\"log\",\"message\":\"Step 2\"}}]"
-
-# Execute from file
-./AIBridgeCache/CLI/AIBridgeCLI.exe batch from_file --file "commands.json"
-```
-
-### 13. `multi` - Execute Multiple Commands (RECOMMENDED)
-
-Execute multiple commands in one CLI call (more efficient than multiple calls).
-
-```bash
-# Commands separated by &
-./AIBridgeCache/CLI/AIBridgeCLI.exe multi --cmd 'editor log --message Step1&gameobject create --name Cube --primitiveType Cube'
-```
-
-| Option | Description |
-|--------|-------------|
-| `--cmd <commands>` | Commands separated by `&` |
-| `--stdin` | Read from stdin (one per line) |
 
 ---
 
