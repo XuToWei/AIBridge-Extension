@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,6 +12,16 @@ namespace AIBridge.Editor
     /// </summary>
     public class AIBridgeSettingsWindow : EditorWindow
     {
+        // 页签枚举
+        private enum TabType
+        {
+            BasicSettings,    // 基础设置
+            GifSettings,      // GIF 设置
+            DirectoryInfo,    // 目录信息
+            SkillInstall,     // Skills 安装
+            Actions           // 操作
+        }
+
         private sealed class AssistantIntegrationSelectionState
         {
             public AssistantIntegrationTarget Target { get; set; }
@@ -23,6 +34,7 @@ namespace AIBridge.Editor
         private bool _bridgeEnabled;
         private bool _debugLogging;
         private List<AssistantIntegrationSelectionState> _assistantIntegrationSelections;
+        private TabType _currentTab = TabType.BasicSettings; // 当前选中的页签
 
         // GIF Settings
         private int _gifFrameCount;
@@ -60,26 +72,42 @@ namespace AIBridge.Editor
 
         private void OnGUI()
         {
-            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
-
             DrawHeader();
-            EditorGUILayout.Space(10);
+            EditorGUILayout.Space(5);
 
-            DrawBridgeSettings();
-            EditorGUILayout.Space(10);
+            // 绘制页签工具栏
+            DrawTabToolbar();
+            EditorGUILayout.Space(5);
 
-            DrawGifSettings();
-            EditorGUILayout.Space(10);
-
-            DrawDirectoryInfo();
-            EditorGUILayout.Space(10);
-
-            DrawAssistantIntegrationSettings();
-            EditorGUILayout.Space(10);
-
-            DrawActions();
+            // 绘制当前页签内容
+            _scrollPosition = EditorGUILayout.BeginScrollView(_scrollPosition);
+            
+            switch (_currentTab)
+            {
+                case TabType.BasicSettings:
+                    DrawBridgeSettings();
+                    break;
+                case TabType.GifSettings:
+                    DrawGifSettings();
+                    break;
+                case TabType.DirectoryInfo:
+                    DrawDirectoryInfo();
+                    break;
+                case TabType.SkillInstall:
+                    DrawAssistantIntegrationSettings();
+                    break;
+                case TabType.Actions:
+                    DrawActions();
+                    break;
+            }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawTabToolbar()
+        {
+            var tabNames = new[] { "基础设置", "GIF 设置", "目录信息", "Skills 安装", "操作" };
+            _currentTab = (TabType)GUILayout.Toolbar((int)_currentTab, tabNames);
         }
 
         private void DrawHeader()
@@ -270,6 +298,19 @@ namespace AIBridge.Editor
             {
                 EditorGUILayout.HelpBox("Select at least one tool to install AIBridge integrations.", MessageType.Warning);
             }
+
+            EditorGUILayout.Space(10);
+
+            // 安装 AGENTS.md 按钮
+            EditorGUILayout.LabelField("AGENTS 工作流规范", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "安装 AGENTS.md 工作流规范文档到项目根目录，方便初次使用者更好地使用 AIBridge。\n安装后会自动执行一次 Skills 安装。",
+                MessageType.Info);
+
+            if (GUILayout.Button("安装 AGENTS.md 到项目根目录", GUILayout.Height(30)))
+            {
+                InstallAgentsFile();
+            }
         }
 
         private void LoadAssistantIntegrationSelections()
@@ -353,6 +394,91 @@ namespace AIBridge.Editor
                     }
                 }
                 Debug.Log($"[AIBridge] Cleared {count} files from screenshot cache.");
+            }
+        }
+
+        /// <summary>
+        /// 获取 AGENTS.md 源文件路径（兼容 Packages 和 PackageCache）
+        /// </summary>
+        private static string GetSourceAgentsPath()
+        {
+            const string PACKAGE_NAME = "cn.lys.aibridge";
+            const string AGENTS_FILE_NAME = "AGENTS.md";
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+
+            // 方法 1: 直接从 Packages 目录查找（本地/嵌入式包）
+            var directPath = Path.Combine(projectRoot, "Packages", PACKAGE_NAME, AGENTS_FILE_NAME);
+            if (File.Exists(directPath))
+            {
+                return directPath;
+            }
+
+            // 方法 2: 使用 PackageInfo 解析路径（git/registry 包）
+            var packageInfo = UnityEditor.PackageManager.PackageInfo.FindForAssetPath($"Packages/{PACKAGE_NAME}");
+            if (packageInfo != null)
+            {
+                var packagePath = Path.Combine(packageInfo.resolvedPath, AGENTS_FILE_NAME);
+                if (File.Exists(packagePath))
+                {
+                    return packagePath;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 安装 AGENTS.md 到项目根目录
+        /// </summary>
+        private void InstallAgentsFile()
+        {
+            var projectRoot = Path.GetDirectoryName(Application.dataPath);
+            var targetPath = Path.Combine(projectRoot, "AGENTS.md");
+
+            // 检查目标文件是否已存在
+            if (File.Exists(targetPath))
+            {
+                if (!EditorUtility.DisplayDialog(
+                    "确认覆盖",
+                    "项目根目录已存在 AGENTS.md 文件，是否覆盖？",
+                    "覆盖",
+                    "取消"))
+                {
+                    return;
+                }
+            }
+
+            // 获取源文件路径
+            var sourcePath = GetSourceAgentsPath();
+            if (string.IsNullOrEmpty(sourcePath))
+            {
+                EditorUtility.DisplayDialog(
+                    "安装失败",
+                    "未找到 AGENTS.md 源文件。\n预期位置：Packages/cn.lys.aibridge/AGENTS.md",
+                    "确定");
+                return;
+            }
+
+            try
+            {
+                // 拷贝文件
+                File.Copy(sourcePath, targetPath, true);
+                Debug.Log($"[AIBridge] AGENTS.md 已安装到: {targetPath}");
+
+                // 自动执行 Skills 安装
+                InstallSelectedTools();
+
+                EditorUtility.DisplayDialog(
+                    "安装成功",
+                    $"AGENTS.md 已成功安装到项目根目录。\n\n已自动执行 Skills 安装。",
+                    "确定");
+            }
+            catch (Exception ex)
+            {
+                EditorUtility.DisplayDialog(
+                    "安装失败",
+                    $"拷贝 AGENTS.md 时发生错误：\n{ex.Message}",
+                    "确定");
             }
         }
     }
