@@ -307,7 +307,7 @@ namespace AIBridge.Editor
                 "安装 AGENTS.md 工作流规范文档到项目根目录，方便初次使用者更好地使用 AIBridge。\n安装后会自动执行一次 Skills 安装。",
                 MessageType.Info);
 
-            if (GUILayout.Button("安装 AGENTS.md 到项目根目录", GUILayout.Height(30)))
+            if (GUILayout.Button("安装 AGENTS.md 示例到项目", GUILayout.Height(30)))
             {
                 InstallAgentsFile();
             }

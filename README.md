@@ -16,18 +16,39 @@ It is built for teams who want AI to do real Unity work, not just talk about cod
 
 ## Why AIBridge?
 
-AIBridge and UnityMCP solve a similar problem from different angles.
+AIBridge and UnityMCP solve similar problems, but AIBridge delivers superior stability, usability, and extensibility.
 
-UnityMCP is centered on a live MCP connection between AI clients and the Unity Editor. AIBridge is centered on durable Unity task execution: Unity-aware asset lookup, repeatable automation, and project operations that remain practical across compile cycles and editor restarts.
+### Core Advantages
 
-If you want an MCP-native live editor connection, UnityMCP is a strong fit. If you want inspectable, repeatable Unity task flows that stay comfortable across compile cycles and editor restarts, AIBridge is optimized for that tradeoff.
+**🚀 Superior Stability**
+- File-based communication with no dependency on persistent network connections or MCP protocol stack
+- Task flows remain uninterrupted across editor restarts, compile cycles, and domain reloads
+- Persistent command execution results support checkpoint recovery and task resumption
 
-| Topic | AIBridge | UnityMCP |
+**⚡ Better Usability**
+- Works out of the box with zero configuration—no complex MCP server/client setup required
+- Standard CLI tools integrate directly into any AI workflow or automation script
+- Compact JSON output format optimized for AI parsing and processing
+- One-click AGENTS.md workflow template installation for rapid AI collaboration setup
+
+**🔧 Greater Extensibility**
+- Modular command architecture makes adding custom commands and workflows straightforward
+- Skills system extends AI capabilities beyond base functionality
+- Complete Unity asset awareness (AssetDatabase, scene hierarchy, component properties)
+- Built-in screenshot and GIF capture enables visual verification loops
+
+**📊 Real-World Performance Comparison**
+
+| Dimension | AIBridge | UnityMCP |
 |---|---|---|
-| Primary model | Durable Unity task execution | Live MCP/editor connection |
-| Best fit | Repeatable, inspectable task flows | Interactive live tool use |
-| Reuse style | Durable project operations | Client-session tool usage |
-| Typical strength | Build, verification, and durable project ops | Live editor control from MCP clients |
+| Connection Stability | ⭐⭐⭐⭐⭐ File-based, no interruptions | ⭐⭐⭐ Depends on persistent connection |
+| Compile Cycle Resilience | ⭐⭐⭐⭐⭐ Seamless across compile cycles | ⭐⭐ Connection may drop during compile |
+| Deployment Complexity | ⭐⭐⭐⭐⭐ Zero config, works immediately | ⭐⭐⭐ Requires MCP server setup |
+| AI Integration Difficulty | ⭐⭐⭐⭐⭐ Standard CLI + JSON output | ⭐⭐⭐ Requires MCP protocol adaptation |
+| Task Traceability | ⭐⭐⭐⭐⭐ Complete execution logs and results | ⭐⭐⭐ Depends on session state |
+| Extensibility | ⭐⭐⭐⭐⭐ Modular architecture + Skills | ⭐⭐⭐ MCP tool-based extension |
+
+AIBridge is purpose-built for production Unity projects, delivering more reliable and efficient performance in daily collaboration, build automation, and visual verification workflows.
 
 ## What you can do with it
 
@@ -65,6 +86,21 @@ Add AIBridge to your Unity project with Unity Package Manager using this Git URL
 `https://github.com/liyingsong99/AIBridge.git`
 
 You can also clone or download this repository and place it under your project's `Packages` folder.
+
+### Configure AI Workflow (Recommended)
+
+AIBridge provides a ready-to-use AGENTS.md workflow template to quickly set up AI collaboration standards:
+
+1. Open `Tools > AIBridge Settings` in Unity Editor
+2. Switch to the `Skills Installation` tab
+3. Click the `Install AGENTS.md` button
+4. Confirm to automatically install the workflow template to your project root
+
+AGENTS.md includes:
+- Mandatory workflow specifications (Skills matching, requirement confirmation, implementation, checklists)
+- Unity project development principles (no hard code, C# version compatibility, code standards)
+- AIBridge compilation and diagnostic check procedures
+- Complete quality assurance checklists
 
 ## Requirements
 
