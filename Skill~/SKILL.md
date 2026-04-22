@@ -68,23 +68,38 @@ $CLI multi --cmd 'editor log --message Step1&gameobject create --name Cube --pri
 $CLI multi --stdin  # Read from stdin (one per line)
 ```
 
-### AIBridge 脚本自动化
+### `batch` - 脚本自动化执行
 
-**用途**：自动化 Unity 编辑器操作和 CLI 命令执行（`.txt` 文件，存放于 `Assets/AIBridgeScripts/`）
+**用途**：自动化 Unity 编辑器操作和 CLI 命令执行，支持编译暂停/恢复
 
-**命令语法**：
+**Actions**：
+- `from_text` - 直接执行脚本文本（自动写入 Cache 临时目录）
+- `from_file` - 执行已有脚本文件（.txt 格式）
+
+**脚本语法**：
 ```
 log "消息"              # 输出日志
 delay 毫秒数            # 延迟执行
 call [CLI命令] [参数]   # 调用 AIBridge CLI（可选 --timeout 毫秒数）
 menu 菜单路径           # 执行编辑器菜单项
+# 注释                 # 行注释
 ```
 
-**语法规则**：`#` 注释，空行跳过，命令不区分大小写
+**使用示例**：
+```bash
+# 直接执行脚本文本
+$CLI batch from_text --text "call editor log 'Hello'\ndelay 1000"
 
-**常用示例**：
+# 执行并保存脚本到 Cache 目录
+$CLI batch from_text --text "..." --name "my_script" --keep-file
+
+# 执行已有脚本文件
+$CLI batch from_file --file "script.txt"
 ```
-# 自动化构建
+
+**脚本示例**：
+```
+# 自动化构建流程
 log "开始构建"
 call compile unity
 delay 2000

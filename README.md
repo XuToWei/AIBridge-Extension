@@ -146,6 +146,11 @@ The bundled AIBridgeCLI is designed to expose the main AIBridge workflows as dir
   ```bash
   ./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Error
   ```
+- **Execute script automation** for repeated Unity tasks with compile-aware execution
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe batch from_text --text "call editor log 'Hello'\ndelay 1000"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe batch from_file --file "script.txt"
+  ```
 - **Capture screenshots or GIFs for visual verification** during Play Mode workflows
   ```bash
   ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game

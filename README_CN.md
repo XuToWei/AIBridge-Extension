@@ -146,6 +146,11 @@ AGENTS.md 包含：
   ```bash
   ./AIBridgeCache/CLI/AIBridgeCLI.exe get_logs --logType Error
   ```
+- **执行脚本自动化**，支持编译感知的重复任务自动化
+  ```bash
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe batch from_text --text "call editor log 'Hello'\ndelay 1000"
+  ./AIBridgeCache/CLI/AIBridgeCLI.exe batch from_file --file "script.txt"
+  ```
 - **截图或录制 GIF 做视觉验证**，适合 Play Mode 下的结果确认
   ```bash
   ./AIBridgeCache/CLI/AIBridgeCLI.exe screenshot game
