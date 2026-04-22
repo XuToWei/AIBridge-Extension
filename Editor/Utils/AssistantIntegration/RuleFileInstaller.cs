@@ -118,5 +118,38 @@ namespace AIBridge.Editor
         {
             return value.Replace("\r\n", "\n").TrimEnd() + "\n";
         }
+
+        /// <summary>
+        /// 从文件中移除指定的 AIBridge 注入块
+        /// </summary>
+        /// <returns>如果找到并移除了块返回 true，否则返回 false</returns>
+        public static bool RemoveBlock(
+            string projectRoot,
+            AssistantIntegrationTarget target,
+            RuleTemplate template)
+        {
+            var ruleFilePath = Path.Combine(projectRoot, target.RootRuleFileName);
+            if (!File.Exists(ruleFilePath))
+            {
+                return false;
+            }
+
+            var content = File.ReadAllText(ruleFilePath, Encoding.UTF8);
+            var existingBlock = InjectionBlockParser.FindMatchingBlock(content, target.Id, template.Metadata.TemplateId, template.Metadata.Target);
+            if (existingBlock == null)
+            {
+                return false;
+            }
+
+            // 移除注入块
+            var updated = content.Substring(0, existingBlock.StartIndex)
+                + content.Substring(existingBlock.StartIndex + existingBlock.Length);
+
+            // 清理多余的空行（最多保留两个连续换行）
+            updated = Regex.Replace(updated, @"\n{3,}", "\n\n");
+
+            File.WriteAllText(ruleFilePath, NormalizeTrailingWhitespace(updated), Encoding.UTF8);
+            return true;
+        }
     }
 }

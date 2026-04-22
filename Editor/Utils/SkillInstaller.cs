@@ -66,6 +66,10 @@ namespace AIBridge.Editor
             {
                 var projectRoot = GetProjectRoot();
                 var targets = GetSelectedTargets(projectRoot);
+                
+                // 清理未勾选目标的注入内容
+                CleanupUnselectedTargets(projectRoot, targets);
+                
                 if (targets.Count == 0)
                 {
                     return;
@@ -421,6 +425,50 @@ namespace AIBridge.Editor
         private static string FormatPathSuffix(string path)
         {
             return string.IsNullOrEmpty(path) ? string.Empty : " (" + path + ")";
+        }
+
+        /// <summary>
+        /// 清理未勾选目标的 AIBridge 注入内容
+        /// </summary>
+        private static void CleanupUnselectedTargets(string projectRoot, List<AssistantIntegrationTarget> selectedTargets)
+        {
+            var allTargets = AssistantIntegrationRegistry.GetTargets();
+            var selectedIds = new HashSet<string>(selectedTargets.Select(t => t.Id), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var target in allTargets)
+            {
+                // 跳过已勾选的目标
+                if (selectedIds.Contains(target.Id))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    // 清理 RootRule 文件中的注入块
+                    var template = RuleTemplateLoader.Load(projectRoot, target.RootRuleTemplateRelativePath);
+                    if (RuleFileInstaller.RemoveBlock(projectRoot, target, template))
+                    {
+                        var ruleFilePath = Path.Combine(projectRoot, target.RootRuleFileName);
+                        AIBridgeLogger.LogInfo($"[SkillInstaller] Removed AIBridge block from {target.DisplayName}: {ruleFilePath}");
+                    }
+
+                    // 清理 Skill 目录（如果支持）
+                    if (target.SupportsSkillDirectory && !string.IsNullOrEmpty(target.SkillDirectoryRelativePath))
+                    {
+                        var skillDir = Path.Combine(projectRoot, target.SkillDirectoryRelativePath.Replace('/', Path.DirectorySeparatorChar));
+                        if (Directory.Exists(skillDir))
+                        {
+                            Directory.Delete(skillDir, true);
+                            AIBridgeLogger.LogInfo($"[SkillInstaller] Removed Skill directory for {target.DisplayName}: {skillDir}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    AIBridgeLogger.LogWarning($"[SkillInstaller] Failed to cleanup {target.DisplayName}: {ex.Message}");
+                }
+            }
         }
 
         /// <summary>
