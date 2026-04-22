@@ -16,12 +16,46 @@ namespace AIBridge.Editor
         public string Type => "batch";
         public bool RequiresRefresh => true;
 
-        public string SkillDescription => @"### `batch` - 批处理脚本执行
+        public string SkillDescription => @"### `batch` - 脚本自动化执行
 
+**用途**：自动化 Unity 编辑器操作和 CLI 命令执行，支持编译暂停/恢复
+
+**Actions**：
+- `from_text` - 直接执行脚本文本（自动写入 Cache 临时目录）
+- `from_file` - 执行已有脚本文件（.txt 格式）
+
+**脚本语法**：
+```
+log ""消息""              # 输出日志
+delay 毫秒数            # 延迟执行
+call [CLI命令] [参数]   # 调用 AIBridge CLI（可选 --timeout 毫秒数）
+menu 菜单路径           # 执行编辑器菜单项
+# 注释                 # 行注释
+```
+
+**使用示例**：
 ```bash
-$CLI batch from_file --file ""script.txt""
+# 直接执行脚本文本
 $CLI batch from_text --text ""call editor log 'Hello'\ndelay 1000""
-```";
+
+# 执行并保存脚本到 Cache 目录
+$CLI batch from_text --text ""..."" --name ""my_script"" --keep-file
+
+# 执行已有脚本文件
+$CLI batch from_file --file ""script.txt""
+```
+
+**脚本示例**：
+```
+# 自动化构建流程
+log ""开始构建""
+call compile unity
+delay 2000
+call scene get_hierarchy --depth 2
+menu File/Save Project
+```
+
+**典型场景**：编译流程、场景批处理、资源管理、重复任务自动化";
 
         public CommandResult Execute(CommandRequest request)
         {
