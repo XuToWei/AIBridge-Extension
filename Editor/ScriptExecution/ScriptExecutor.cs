@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AIBridge.Editor;
+using AIBridge.Internal.Json;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
