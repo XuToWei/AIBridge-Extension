@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using AIBridge.Editor;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
@@ -45,6 +47,7 @@ namespace AIBridge.Editor.ScriptExecution
                 {
                     _instance = new ScriptExecutor();
                 }
+
                 return _instance;
             }
         }
@@ -65,6 +68,7 @@ namespace AIBridge.Editor.ScriptExecution
 
             // 订阅编译事件
             CompilationPipeline.compilationStarted += OnCompilationStarted;
+            CompilationPipeline.compilationFinished += OnCompilationFinished;
         }
 
         private void Initialize()
@@ -72,11 +76,15 @@ namespace AIBridge.Editor.ScriptExecution
             // 加载上次的执行状态
             _state = ScriptExecutionState.Load();
 
-            // 如果上次是运行中状态，自动恢复执行
             if (_state.Status == ExecutionStatus.Running)
             {
                 Log($"检测到未完成的脚本执行，自动恢复: {_state.ScriptPath}");
                 ResumeExecution();
+            }
+            else if (_state.Status == ExecutionStatus.Paused && _state.PausedByCompilation)
+            {
+                Log($"检测到编译中断的脚本执行，等待编译结束后恢复: {_state.ScriptPath}");
+                ResumeAfterCompilationIfNeeded();
             }
         }
 
@@ -85,7 +93,15 @@ namespace AIBridge.Editor.ScriptExecution
         /// </summary>
         public static void Execute(string scriptPath)
         {
-            Instance.ExecuteInternal(scriptPath);
+            Instance.ExecuteInternal(scriptPath, null, false);
+        }
+
+        /// <summary>
+        /// 开始执行 batch 脚本，并关联结果写回信息
+        /// </summary>
+        public static void Execute(string scriptPath, string batchRequestId, bool deleteAfterExecution)
+        {
+            Instance.ExecuteInternal(scriptPath, batchRequestId, deleteAfterExecution);
         }
 
         /// <summary>
@@ -112,7 +128,7 @@ namespace AIBridge.Editor.ScriptExecution
             Instance.StopInternal();
         }
 
-        private void ExecuteInternal(string scriptPath)
+        private void ExecuteInternal(string scriptPath, string batchRequestId, bool deleteAfterExecution)
         {
             if (_isExecuting)
             {
@@ -120,23 +136,28 @@ namespace AIBridge.Editor.ScriptExecution
                 return;
             }
 
+            _state = new ScriptExecutionState
+            {
+                ScriptPath = scriptPath,
+                CurrentLine = 0,
+                Status = ExecutionStatus.Running,
+                StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                PausedByCompilation = false,
+                BatchRequestId = batchRequestId,
+                DeleteScriptAfterExecution = deleteAfterExecution
+            };
+
             try
             {
+                // 先落盘状态，再开始解析，这样即使解析失败也能保留 batch 结果写回所需上下文。
+                _state.Save();
+
                 // 解析脚本
                 Log($"开始解析脚本: {scriptPath}");
                 _commands = ScriptParser.Parse(scriptPath);
                 Log($"脚本解析完成，共 {_commands.Count} 条命令");
 
-                // 初始化状态
-                _state = new ScriptExecutionState
-                {
-                    ScriptPath = scriptPath,
-                    CurrentLine = 0,
-                    Status = ExecutionStatus.Running,
-                    StartTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
-                };
                 _state.Save();
-
                 _isExecuting = true;
                 NotifyStatusChanged(ExecutionStatus.Running);
 
@@ -146,9 +167,11 @@ namespace AIBridge.Editor.ScriptExecution
             catch (Exception ex)
             {
                 LogError($"脚本执行失败: {ex.Message}");
+                _isExecuting = false;
                 _state.Status = ExecutionStatus.Error;
                 _state.ErrorMessage = ex.Message;
                 _state.Save();
+                TryWriteBatchResultForCurrentState();
                 NotifyStatusChanged(ExecutionStatus.Error);
             }
         }
@@ -167,6 +190,12 @@ namespace AIBridge.Editor.ScriptExecution
                 return;
             }
 
+            if (EditorApplication.isCompiling && _state.PausedByCompilation)
+            {
+                EditorApplication.delayCall += ResumeAfterCompilationIfNeeded;
+                return;
+            }
+
             try
             {
                 // 重新解析脚本
@@ -174,6 +203,7 @@ namespace AIBridge.Editor.ScriptExecution
                 _commands = ScriptParser.Parse(_state.ScriptPath);
 
                 _state.Status = ExecutionStatus.Running;
+                _state.PausedByCompilation = false;
                 _state.Save();
 
                 _isExecuting = true;
@@ -185,14 +215,21 @@ namespace AIBridge.Editor.ScriptExecution
             catch (Exception ex)
             {
                 LogError($"恢复执行失败: {ex.Message}");
+                _isExecuting = false;
                 _state.Status = ExecutionStatus.Error;
                 _state.ErrorMessage = ex.Message;
                 _state.Save();
+                TryWriteBatchResultForCurrentState();
                 NotifyStatusChanged(ExecutionStatus.Error);
             }
         }
 
         private void PauseInternal()
+        {
+            PauseInternal(false);
+        }
+
+        private void PauseInternal(bool pausedByCompilation)
         {
             if (!_isExecuting)
             {
@@ -203,6 +240,7 @@ namespace AIBridge.Editor.ScriptExecution
             Log("暂停脚本执行");
             _isExecuting = false;
             _state.Status = ExecutionStatus.Paused;
+            _state.PausedByCompilation = pausedByCompilation;
             _state.Save();
 
             EditorApplication.update -= ExecuteNextCommand;
@@ -221,7 +259,9 @@ namespace AIBridge.Editor.ScriptExecution
             _isExecuting = false;
             _state.Status = ExecutionStatus.Idle;
             _state.EndTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            _state.PausedByCompilation = false;
             _state.Save();
+            TryWriteBatchStoppedResult();
 
             EditorApplication.update -= ExecuteNextCommand;
             NotifyStatusChanged(ExecutionStatus.Idle);
@@ -246,6 +286,7 @@ namespace AIBridge.Editor.ScriptExecution
                 _state.Status = ExecutionStatus.Completed;
                 _state.EndTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
                 _state.Save();
+                TryWriteBatchResultForCurrentState();
 
                 EditorApplication.update -= ExecuteNextCommand;
                 NotifyStatusChanged(ExecutionStatus.Completed);
@@ -277,6 +318,7 @@ namespace AIBridge.Editor.ScriptExecution
                     _state.Status = ExecutionStatus.Error;
                     _state.ErrorMessage = result.Message;
                     _state.Save();
+                    TryWriteBatchResultForCurrentState();
 
                     EditorApplication.update -= ExecuteNextCommand;
                     NotifyStatusChanged(ExecutionStatus.Error);
@@ -294,6 +336,7 @@ namespace AIBridge.Editor.ScriptExecution
                 _state.Status = ExecutionStatus.Error;
                 _state.ErrorMessage = ex.Message;
                 _state.Save();
+                TryWriteBatchResultForCurrentState();
 
                 EditorApplication.update -= ExecuteNextCommand;
                 NotifyStatusChanged(ExecutionStatus.Error);
@@ -306,7 +349,120 @@ namespace AIBridge.Editor.ScriptExecution
             if (_isExecuting)
             {
                 Log("检测到编译开始，暂停脚本执行");
-                PauseInternal();
+                PauseInternal(true);
+            }
+        }
+
+        private void OnCompilationFinished(object obj)
+        {
+            if (_state.Status == ExecutionStatus.Paused && _state.PausedByCompilation)
+            {
+                EditorApplication.delayCall += ResumeAfterCompilationIfNeeded;
+            }
+        }
+
+        /// <summary>
+        /// 编译恢复要等 Unity 完全退出 compiling 状态后再继续，
+        /// 否则会在域重载边界上出现恢复过早的问题。
+        /// </summary>
+        private void ResumeAfterCompilationIfNeeded()
+        {
+            if (_isExecuting)
+            {
+                return;
+            }
+
+            if (_state.Status != ExecutionStatus.Paused || !_state.PausedByCompilation)
+            {
+                return;
+            }
+
+            if (EditorApplication.isCompiling)
+            {
+                EditorApplication.delayCall += ResumeAfterCompilationIfNeeded;
+                return;
+            }
+
+            Log("检测到编译完成，恢复脚本执行");
+            ResumeExecution();
+        }
+
+        private void TryWriteBatchStoppedResult()
+        {
+            if (string.IsNullOrEmpty(_state.BatchRequestId))
+            {
+                return;
+            }
+
+            TryDeleteBatchScriptIfNeeded();
+            WriteBatchResultFile(CommandResult.Failure(_state.BatchRequestId, "Script execution was stopped."));
+        }
+
+        private void TryWriteBatchResultForCurrentState()
+        {
+            if (string.IsNullOrEmpty(_state.BatchRequestId))
+            {
+                return;
+            }
+
+            TryDeleteBatchScriptIfNeeded();
+
+            CommandResult result;
+            if (_state.Status == ExecutionStatus.Completed)
+            {
+                result = CommandResult.Success(_state.BatchRequestId, new
+                {
+                    scriptPath = _state.ScriptPath,
+                    status = "completed",
+                    startTime = _state.StartTime,
+                    endTime = _state.EndTime,
+                    logs = _state.Logs
+                });
+            }
+            else
+            {
+                result = CommandResult.Failure(_state.BatchRequestId, $"Script execution failed: {_state.ErrorMessage}");
+            }
+
+            WriteBatchResultFile(result);
+        }
+
+        private void TryDeleteBatchScriptIfNeeded()
+        {
+            if (!_state.DeleteScriptAfterExecution || string.IsNullOrEmpty(_state.ScriptPath) || !File.Exists(_state.ScriptPath))
+            {
+                return;
+            }
+
+            try
+            {
+                File.Delete(_state.ScriptPath);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[ScriptExecutor] 删除临时脚本文件失败: {ex.Message}");
+            }
+        }
+
+        private static void WriteBatchResultFile(CommandResult result)
+        {
+            try
+            {
+                var resultsDir = Path.Combine(AIBridge.BridgeDirectory, "results");
+                if (!Directory.Exists(resultsDir))
+                {
+                    Directory.CreateDirectory(resultsDir);
+                }
+
+                var filePath = Path.Combine(resultsDir, result.id + ".json");
+                var json = AIBridgeJson.Serialize(result, pretty: true);
+                File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
+
+                AIBridgeLogger.LogInfo($"Batch script result written: {result.id}, success={result.success}");
+            }
+            catch (Exception ex)
+            {
+                AIBridgeLogger.LogError($"Failed to write batch result for {result.id}: {ex.Message}");
             }
         }
 

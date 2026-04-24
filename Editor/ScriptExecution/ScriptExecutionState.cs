@@ -46,6 +46,23 @@ namespace AIBridge.Editor.ScriptExecution
         /// </summary>
         public string ErrorMessage { get; set; }
 
+        /// <summary>
+        /// 是否因编译而暂停。
+        /// 用于区分“用户手动暂停”和“编译触发的自动暂停”，避免错误地自动恢复手动暂停的脚本。
+        /// </summary>
+        public bool PausedByCompilation { get; set; }
+
+        /// <summary>
+        /// 关联的 batch 请求 ID。
+        /// 存在该值时，脚本终态需要写回 AIBridgeCache/results。
+        /// </summary>
+        public string BatchRequestId { get; set; }
+
+        /// <summary>
+        /// batch 脚本结束后是否删除脚本文件。
+        /// </summary>
+        public bool DeleteScriptAfterExecution { get; set; }
+
         private const string StateFilePath = "AIBridgeCache/script-state.json";
 
         public ScriptExecutionState()
