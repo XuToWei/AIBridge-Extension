@@ -41,6 +41,7 @@ namespace AIBridge.Editor
         [SerializeField] private List<AssistantSelectionEntry> assistantSelections = new List<AssistantSelectionEntry>();
         [SerializeField] private bool legacyGifMigrated;
         [SerializeField] private bool legacyScriptDirectoryMigrated;
+        [SerializeField] private bool autoInstallSkills = true;
 
         public static AIBridgeProjectSettings Instance
         {
@@ -107,6 +108,12 @@ namespace AIBridge.Editor
         {
             get { return legacyScriptDirectoryMigrated; }
             set { legacyScriptDirectoryMigrated = value; }
+        }
+
+        public bool AutoInstallSkills
+        {
+            get { return autoInstallSkills; }
+            set { autoInstallSkills = value; }
         }
 
         public bool TryGetAssistantSelection(string targetId, out bool selected)

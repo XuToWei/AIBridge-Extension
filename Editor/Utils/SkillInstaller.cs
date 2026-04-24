@@ -64,6 +64,12 @@ namespace AIBridge.Editor
         {
             try
             {
+                // 检查是否启用自动安装
+                if (!AIBridgeProjectSettings.Instance.AutoInstallSkills)
+                {
+                    return;
+                }
+
                 var projectRoot = GetProjectRoot();
                 var targets = GetSelectedTargets(projectRoot);
                 
@@ -295,7 +301,26 @@ namespace AIBridge.Editor
         {
             var results = new List<AssistantIntegrationResult>();
             var sourceSkillPath = GetSourceSkillPath();
-            foreach (var target in targets)
+            
+            // 去重逻辑：如果同时存在 CLAUDE.md 和 AGENTS.md，优先使用 AGENTS.md
+            var targetsList = targets.ToList();
+            var hasClaudeTarget = targetsList.Any(t => t.Id == "claude");
+            var hasCodexTarget = targetsList.Any(t => t.Id == "codex");
+            
+            if (hasClaudeTarget && hasCodexTarget)
+            {
+                var claudeMdPath = Path.Combine(projectRoot, "CLAUDE.md");
+                var agentsMdPath = Path.Combine(projectRoot, "AGENTS.md");
+                
+                // 如果两个文件都存在，优先使用 AGENTS.md，跳过 CLAUDE.md
+                if (File.Exists(claudeMdPath) && File.Exists(agentsMdPath))
+                {
+                    targetsList = targetsList.Where(t => t.Id != "claude").ToList();
+                    AIBridgeLogger.LogInfo("[SkillInstaller] 检测到 CLAUDE.md 和 AGENTS.md 同时存在，优先使用 AGENTS.md");
+                }
+            }
+            
+            foreach (var target in targetsList)
             {
                 var result = new AssistantIntegrationResult
                 {

@@ -254,6 +254,17 @@ namespace AIBridge.Editor
                 "Select which supported AI tools should receive AIBridge skill installation. Detected tools are selected by default on first use.",
                 MessageType.Info);
 
+            // 自动安装开关
+            EditorGUI.BeginChangeCheck();
+            var autoInstall = EditorGUILayout.Toggle("自动安装 Skills", AIBridgeProjectSettings.Instance.AutoInstallSkills);
+            if (EditorGUI.EndChangeCheck())
+            {
+                AIBridgeProjectSettings.Instance.AutoInstallSkills = autoInstall;
+                AIBridgeProjectSettings.Instance.SaveSettings();
+            }
+
+            EditorGUILayout.Space(5);
+
             if (_assistantIntegrationSelections == null)
             {
                 LoadAssistantIntegrationSelections();
