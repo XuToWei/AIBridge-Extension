@@ -8,11 +8,30 @@ namespace AIBridge.Editor
     public static class AIBridgeLogger
     {
         private const string PREFIX = "[AIBridge]";
+        private static EditorOption<bool> _debugEnabledOption;
 
         /// <summary>
         /// Enable or disable debug logging
         /// </summary>
-        public static bool DebugEnabled { get; set; } = false;
+        public static bool DebugEnabled
+        {
+            get
+            {
+                if (_debugEnabledOption == null)
+                {
+                    _debugEnabledOption = new EditorOption<bool>("AIBridge_DebugLogging", false, ReadDebugEnabled, WriteDebugEnabled);
+                }
+                return _debugEnabledOption.Value;
+            }
+            set
+            {
+                if (_debugEnabledOption == null)
+                {
+                    _debugEnabledOption = new EditorOption<bool>("AIBridge_DebugLogging", false, ReadDebugEnabled, WriteDebugEnabled);
+                }
+                _debugEnabledOption.Value = value;
+            }
+        }
 
         public static void LogDebug(string message)
         {
@@ -35,6 +54,23 @@ namespace AIBridge.Editor
         public static void LogError(string message)
         {
             Debug.LogError($"{PREFIX} {message}");
+        }
+
+        private static bool ReadDebugEnabled(string key, bool defaultValue)
+        {
+            return AIBridgeProjectSettings.Instance.DebugLogging;
+        }
+
+        private static void WriteDebugEnabled(string key, bool value)
+        {
+            var settings = AIBridgeProjectSettings.Instance;
+            if (settings.DebugLogging == value)
+            {
+                return;
+            }
+
+            settings.DebugLogging = value;
+            settings.SaveSettings();
         }
     }
 }

@@ -25,6 +25,7 @@ namespace AIBridge.Editor
         private static double _lastPollTime;
         private static CommandWatcher _watcher;
         private static bool _enabled = true;
+        private static EditorOption<bool> _enabledOption;
 
         /// <summary>
         /// Communication directory path
@@ -40,6 +41,10 @@ namespace AIBridge.Editor
             set
             {
                 _enabled = value;
+                if (_enabledOption != null)
+                {
+                    _enabledOption.Value = value;
+                }
                 AIBridgeLogger.LogInfo($"AI Bridge {(_enabled ? "enabled" : "disabled")}");
             }
         }
@@ -54,6 +59,9 @@ namespace AIBridge.Editor
         /// </summary>
         private static void Initialize()
         {
+            _enabledOption = new EditorOption<bool>("AIBridge_Enabled", true, ReadEnabled, WriteEnabled);
+            _enabled = _enabledOption.Value;
+
             // Get the exchange directory inside the package (Tools~/Exchange)
             BridgeDirectory = GetExchangeDirectory();
 
@@ -182,6 +190,23 @@ namespace AIBridge.Editor
             // Use AIBridgeCache in Unity project root for better compatibility with git/UPM installation
             var projectRoot = Path.GetDirectoryName(Application.dataPath);
             return Path.Combine(projectRoot, "AIBridgeCache");
+        }
+
+        private static bool ReadEnabled(string key, bool defaultValue)
+        {
+            return AIBridgeProjectSettings.Instance.BridgeEnabled;
+        }
+
+        private static void WriteEnabled(string key, bool value)
+        {
+            var settings = AIBridgeProjectSettings.Instance;
+            if (settings.BridgeEnabled == value)
+            {
+                return;
+            }
+
+            settings.BridgeEnabled = value;
+            settings.SaveSettings();
         }
     }
 }

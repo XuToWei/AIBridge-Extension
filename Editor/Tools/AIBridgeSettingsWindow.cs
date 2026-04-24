@@ -37,6 +37,7 @@ namespace AIBridge.Editor
         private bool _debugLogging;
         private List<AssistantIntegrationSelectionState> _assistantIntegrationSelections;
         private TabType _currentTab = TabType.BasicSettings; // 当前选中的页签
+        private static EditorOption<string> _scriptDirectoryOption;
 
         // GIF Settings
         private int _gifFrameCount;
@@ -58,6 +59,12 @@ namespace AIBridge.Editor
         {
             LoadSettings();
             LoadAssistantIntegrationSelections();
+            if (_scriptDirectoryOption == null)
+            {
+                _scriptDirectoryOption = new EditorOption<string>("AIBridge_ScriptDirectory", AIBridgeProjectSettings.DefaultScriptDirectory, ReadScriptDirectory, WriteScriptDirectory);
+            }
+            _scriptDirectory = _scriptDirectoryOption.Value;
+            RefreshScriptList();
         }
 
         private void LoadSettings()
@@ -489,7 +496,7 @@ namespace AIBridge.Editor
 
         // ==================== 脚本执行页签 ====================
         
-        private string _scriptDirectory = "Assets/AIBridgeScripts";
+        private string _scriptDirectory = AIBridgeProjectSettings.DefaultScriptDirectory;
         private List<string> _scriptFiles = new List<string>();
         private int _selectedScriptIndex = -1;
         private Vector2 _scriptLogScrollPosition;
@@ -536,7 +543,7 @@ namespace AIBridge.Editor
                     {
                         _scriptDirectory = path;
                     }
-                    EditorPrefs.SetString("AIBridge_ScriptDirectory", _scriptDirectory);
+                    _scriptDirectoryOption.Value = _scriptDirectory;
                 }
             }
             
@@ -685,7 +692,11 @@ namespace AIBridge.Editor
             _scriptFiles.Clear();
             
             // 加载保存的目录
-            _scriptDirectory = EditorPrefs.GetString("AIBridge_ScriptDirectory", "Assets/AIBridgeScripts");
+            if (_scriptDirectoryOption == null)
+            {
+                _scriptDirectoryOption = new EditorOption<string>("AIBridge_ScriptDirectory", AIBridgeProjectSettings.DefaultScriptDirectory, ReadScriptDirectory, WriteScriptDirectory);
+            }
+            _scriptDirectory = _scriptDirectoryOption.Value;
             
             if (!Directory.Exists(_scriptDirectory))
             {
@@ -752,12 +763,50 @@ log ""示例脚本执行完成""
             }
             
             _scriptDirectory = directory;
-            EditorPrefs.SetString("AIBridge_ScriptDirectory", _scriptDirectory);
+            _scriptDirectoryOption.Value = _scriptDirectory;
             
             RefreshScriptList();
             AssetDatabase.Refresh();
             
             EditorUtility.DisplayDialog("成功", $"已创建脚本目录和示例脚本:\n{directory}", "确定");
+        }
+
+        private static string ReadScriptDirectory(string key, string defaultValue)
+        {
+            EnsureScriptDirectoryMigrated(key, defaultValue);
+            return AIBridgeProjectSettings.Instance.ScriptDirectory;
+        }
+
+        private static void EnsureScriptDirectoryMigrated(string key, string defaultValue)
+        {
+            var settings = AIBridgeProjectSettings.Instance;
+            if (settings.LegacyScriptDirectoryMigrated)
+            {
+                return;
+            }
+
+            // 脚本目录此前存于 EditorPrefs，这里在首次读取时迁移到项目级配置。
+            if (EditorPrefs.HasKey(key))
+            {
+                settings.ScriptDirectory = EditorPrefs.GetString(key, defaultValue);
+                EditorPrefs.DeleteKey(key);
+            }
+
+            settings.LegacyScriptDirectoryMigrated = true;
+            settings.SaveSettings();
+        }
+
+        private static void WriteScriptDirectory(string key, string value)
+        {
+            var settings = AIBridgeProjectSettings.Instance;
+            var newValue = string.IsNullOrEmpty(value) ? AIBridgeProjectSettings.DefaultScriptDirectory : value;
+            if (settings.ScriptDirectory == newValue)
+            {
+                return;
+            }
+
+            settings.ScriptDirectory = newValue;
+            settings.SaveSettings();
         }
     }
 }
